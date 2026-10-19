@@ -3,9 +3,9 @@
 **INF601 - Advanced Programming in Python · Mini Project 5 · Alex Crenshaw**
 
 A Flask web app for tracking your matches in Valve's *Deadlock*. Create an account, log each
-game (hero, win/loss, side, kills/deaths/assists, souls, match length and notes, plus every
-hero on both teams and who you laned with and against), and see your win rate, KDA and souls
-per minute overall, by hero, and by matchup.
+game (hero, win/loss, lane, side, kills/deaths/assists, souls, match length and notes, plus
+every hero on both teams and who you laned with and against), and see how you do on each hero:
+win rate, KDA, souls per minute, your best lane, and your best and toughest matchups.
 
 This is a manual tracker: you enter your own stats after each game. It does not pull data
 from Valve or any third-party stats service.
@@ -18,12 +18,23 @@ from Valve or any third-party stats service.
   2v2, so every match has exactly 1 **lane partner** and 2 **lane opponents**. A hero can only be
   in a match once, so the form greys out heroes already picked and the server rejects duplicates
   on either team, across both teams, or matching the hero you played
-- **Souls per minute** for every match, and averaged (total souls ÷ total minutes) across matches
+- Record the **lane** you played (Yellow, Blue or Green) and your side (**Hidden King** or **Archmother**)
+- Match length is entered and shown as **minutes:seconds** (for example `34:12`) and stored in
+  seconds, so souls per minute is precise
+- **Souls per minute** for every match. Averages (total souls ÷ total minutes) are only ever
+  calculated for one hero at a time, because heroes farm at very different rates
 - Edit matches, and delete them through a Bootstrap confirmation modal
-- **Stats** page: games played, win rate, overall KDA, average souls and souls/min, plus a per-hero table
-- **Matchups** page: your win rate and souls/min against each lane opponent, with each lane
-  partner, and with each hero on the enemy team or your team
-- **Heroes** page: the full roster with your record on each hero; click one to see those games
+- **Stats** page: games, win rate, overall KDA and heroes played, plus a per-hero table with
+  average souls and souls/min
+- **Matchups** page: pick one of your heroes and see your win rate and souls/min against each lane
+  opponent, with each lane partner, and with each hero on the enemy team or your team. Matchups are
+  kept separate per hero: beating a hero in lane on Apollo says nothing about facing them on Shiv
+- **Hero pages** for every hero you've played: record, win rate, KDA, souls and souls/min; win rate
+  by lane with your best lane highlighted; your best and toughest lane matchups, lane partners,
+  teammates and enemies; your own notes on the hero (saved per player); the notes from all your
+  matches on that hero; and your match history on them
+- **Heroes** page: the full roster with your record on each hero; heroes you've played link to
+  their hero page
 - Dark Bootstrap 5 theme, responsive down to phone width
 
 ## Error handling
@@ -31,6 +42,7 @@ from Valve or any third-party stats service.
 - **Form input:** every form is checked on the server, and problems are shown as a message above
   the form with your input kept. This covers missing fields, non-numeric or negative numbers,
   unrealistically large numbers (for example more than 200 kills), notes over 2,000 characters,
+  a missing lane, a length that isn't minutes:seconds, hero notes over 5,000 characters,
   missing teammates or enemies, a missing lane partner, anything other than 2 lane opponents,
   duplicate heroes, and usernames/passwords that are too long or too short.
 - **Error pages:** 403, 404, 405 and 500 errors show a styled page with a plain-English explanation
@@ -52,21 +64,24 @@ from Valve or any third-party stats service.
 | Match detail | `/match/<id>` | Full stats and notes, with edit and delete |
 | Edit match | `/match/<id>/edit` | GET + POST form, owner only |
 | Stats | `/stats` | Aggregate stats using `JOIN` and `GROUP BY` |
-| Matchups | `/matchups` | Tabs for lane opponents, lane partners, enemy team and your team |
+| Matchups | `/matchups?hero=<id>` | GET form to pick your hero, then tabs for lane opponents, lane partners, enemy team and your team |
 | Heroes | `/heroes` | Hero grid |
-| Hero detail | `/heroes/<id>` | Your matches on one hero |
+| Hero page | `/heroes/<id>` | Lanes, matchups, pairings, notes and matches for one hero, plus a POST form (`/heroes/<id>/notes`) to save your notes |
 
 ## Database
 
-SQLite, with four tables defined in `deadlocktracker/schema.sql`:
+SQLite, with five tables defined in `deadlocktracker/schema.sql`:
 
 - **user**: `id`, `username`, `password` (hashed)
 - **hero**: `id`, `name` (seeded with the roster when the database is initialized)
-- **match_log**: one row per game, with `user_id` → `user.id` and `hero_id` → `hero.id` foreign keys
+- **match_log**: one row per game, with `user_id` → `user.id` and `hero_id` → `hero.id` foreign keys.
+  Includes `lane` (Yellow/Blue/Green), `team` (Hidden King/Archmother) and `duration_sec`
 - **match_player**: the other heroes in a game, one row each, with `match_id` → `match_log.id`
   and `hero_id` → `hero.id` foreign keys. `side` is `ally` or `enemy`, and `in_lane` marks your
   lane partner or lane opponents. `UNIQUE (match_id, hero_id)` stops a hero appearing twice in one
   match. Rows are deleted automatically with their match (`ON DELETE CASCADE`).
+- **hero_note**: your own notes on a hero, with `user_id` → `user.id` and `hero_id` → `hero.id`
+  foreign keys and `UNIQUE (user_id, hero_id)` so each player has one note per hero
 
 Foreign keys are enforced with `PRAGMA foreign_keys = ON` on every connection.
 
