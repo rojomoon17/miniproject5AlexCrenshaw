@@ -1,20 +1,155 @@
 {% extends 'base.html' %}
 
+{# A short ranked list of heroes, e.g. "Best lane matchups". #}
+{% macro matchup_card(title, rows, empty, style) %}
+  <div class="card h-100">
+    <div class="card-header">{{ title }}</div>
+    <ul class="list-group list-group-flush">
+      {% for r in rows %}
+        <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
+          <span>{{ r['name'] }}</span>
+          <span class="small text-nowrap">
+            <span class="fw-semibold text-{{ style }}">{{ r['win_rate'] }}%</span>
+            <span class="text-body-secondary">· {{ r['wins'] }}-{{ r['games'] - r['wins'] }}</span>
+          </span>
+        </li>
+      {% else %}
+        <li class="list-group-item small text-body-secondary">{{ empty }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+{% endmacro %}
+
+{% block title %}{{ hero['name'] }}{% endblock %}
+
 {% block header %}
-  <h1>{% block title %}{{ hero['name'] }}{% endblock %}</h1>
-  <p class="text-body-secondary mb-0">
-    {{ matches|length }} game{{ '' if matches|length == 1 else 's' }} logged
-  </p>
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <div>
+      <h1 class="mb-0">{{ hero['name'] }}</h1>
+      <p class="text-body-secondary mb-0">
+        {{ summary['games'] }} game{{ '' if summary['games'] == 1 else 's' }} logged
+      </p>
+    </div>
+    <div class="d-flex gap-2">
+      {% if summary['games'] %}
+        <a class="btn btn-outline-light" href="{{ url_for('matches.matchups', hero=hero['id']) }}">All matchups</a>
+      {% endif %}
+      <a class="btn btn-warning" href="{{ url_for('matches.create') }}">Log match</a>
+    </div>
+  </div>
 {% endblock %}
 
 {% block content %}
-  {% if matches %}
-    {% include 'matches/_table.html' %}
-  {% else %}
+  {% if not summary['games'] %}
     <div class="text-center py-5 border rounded-3">
-      <p class="fs-5">You haven't logged any games as {{ hero['name'] }} yet.</p>
+      <p class="fs-5 mb-1">You haven't logged any games as {{ hero['name'] }} yet.</p>
+      <p class="text-body-secondary">Once you do, this page shows your lanes, matchups and notes for {{ hero['name'] }}.</p>
       <a class="btn btn-warning" href="{{ url_for('matches.create') }}">Log match</a>
     </div>
+  {% else %}
+    {# Summary #}
+    <div class="row row-cols-2 row-cols-md-5 g-3 mb-4">
+      <div class="col"><div class="card h-100 text-center"><div class="card-body">
+        <div class="stat-label">Record</div>
+        <div class="stat-value">{{ summary['wins'] }}-{{ summary['games'] - summary['wins'] }}</div>
+      </div></div></div>
+      <div class="col"><div class="card h-100 text-center"><div class="card-body">
+        <div class="stat-label">Win rate</div>
+        <div class="stat-value">{{ '%.1f'|format(100 * summary['wins'] / summary['games']) }}%</div>
+      </div></div></div>
+      <div class="col"><div class="card h-100 text-center"><div class="card-body">
+        <div class="stat-label">KDA</div>
+        <div class="stat-value">{{ summary['kda'] }}</div>
+      </div></div></div>
+      <div class="col"><div class="card h-100 text-center"><div class="card-body">
+        <div class="stat-label">Avg souls</div>
+        <div class="stat-value">{{ '{:,}'.format(summary['avg_souls']|int) if summary['avg_souls'] is not none else '—' }}</div>
+      </div></div></div>
+      <div class="col"><div class="card h-100 text-center"><div class="card-body">
+        <div class="stat-label">Souls / min</div>
+        <div class="stat-value">{{ '{:,}'.format(summary['spm']) if summary['spm'] is not none else '—' }}</div>
+      </div></div></div>
+    </div>
+
+    {# Lanes #}
+    <h2 class="h4">Lanes</h2>
+    <div class="row g-3 mb-4">
+      {% for lane in by_lane %}
+        <div class="col-md-4">
+          <div class="card h-100 {{ 'border-' ~ lane_styles[lane['lane']] if loop.first and by_lane|length > 1 }}">
+            <div class="card-body">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="badge rounded-pill text-bg-{{ lane_styles[lane['lane']] }}">{{ lane['lane'] }}</span>
+                {% if loop.first and by_lane|length > 1 %}<span class="small fw-semibold">Your best lane</span>{% endif %}
+              </div>
+              <div class="stat-value">{{ lane['win_rate'] }}%</div>
+              <div class="small text-body-secondary">
+                {{ lane['wins'] }}-{{ lane['games'] - lane['wins'] }} · KDA {{ lane['kda'] }}
+                · {{ '{:,}'.format(lane['spm']) ~ ' souls/min' if lane['spm'] is not none else 'souls/min —' }}
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+
+    {# Matchups and pairings #}
+    <h2 class="h4">Matchups &amp; pairings</h2>
+    <p class="small text-body-secondary">Only from your games as {{ hero['name'] }}. Small samples can swing a lot, so check the W-L.</p>
+    <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3 mb-4">
+      <div class="col">{{ matchup_card('Best lane matchups', best_opponents, 'No winning lane matchups yet.', 'success') }}</div>
+      <div class="col">{{ matchup_card('Toughest lane matchups', toughest_opponents, 'No losing lane matchups yet.', 'danger') }}</div>
+      <div class="col">{{ matchup_card('Best lane partners', best_partners, 'No winning lane partners yet.', 'success') }}</div>
+      <div class="col">{{ matchup_card('Toughest lane partners', toughest_partners, 'No losing lane partners yet.', 'danger') }}</div>
+      <div class="col">{{ matchup_card('Best teammates', best_teammates, 'No winning teammates yet.', 'success') }}</div>
+      <div class="col">{{ matchup_card('Toughest enemies', toughest_enemies, 'No losing enemy matchups yet.', 'danger') }}</div>
+    </div>
+
+    {# Notes #}
+    <h2 class="h4" id="notes">Notes</h2>
+    <div class="row g-3 mb-4">
+      <div class="col-lg-6">
+        <form method="post" action="{{ url_for('matches.hero_notes', id=hero['id']) }}" class="card h-100">
+          <div class="card-header">Your {{ hero['name'] }} notes</div>
+          <div class="card-body">
+            <label for="hero-note" class="visually-hidden">Your {{ hero['name'] }} notes</label>
+            <textarea class="form-control" id="hero-note" name="body" rows="7" maxlength="5000"
+                      placeholder="Builds, power spikes, matchups to watch for, what to practise...">{{ note['body'] if note else '' }}</textarea>
+            <div class="d-flex justify-content-between align-items-center mt-2">
+              <span class="small text-body-secondary">
+                {% if note %}Last saved {{ note['updated'].strftime('%b %d, %Y') }}{% else %}Not saved yet{% endif %}
+              </span>
+              <button type="submit" class="btn btn-sm btn-warning">Save notes</button>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="col-lg-6">
+        <div class="card h-100">
+          <div class="card-header">From your matches</div>
+          <ul class="list-group list-group-flush notes-list">
+            {% for n in match_notes %}
+              <li class="list-group-item">
+                <div class="d-flex justify-content-between small mb-1">
+                  <span>
+                    <span class="badge {{ 'text-bg-success' if n['result'] == 'Win' else 'text-bg-danger' }}">{{ n['result'] }}</span>
+                    <span class="badge rounded-pill text-bg-{{ lane_styles[n['lane']] }}">{{ n['lane'] }}</span>
+                  </span>
+                  <a class="text-body-secondary" href="{{ url_for('matches.detail', id=n['id']) }}">{{ n['played'].strftime('%b %d, %Y') }}</a>
+                </div>
+                <p class="mb-0 notes">{{ n['notes'] }}</p>
+              </li>
+            {% else %}
+              <li class="list-group-item small text-body-secondary">None of your {{ hero['name'] }} matches have notes yet.</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    {# Matches #}
+    <h2 class="h4">Matches</h2>
+    {% include 'matches/_table.html' %}
   {% endif %}
   <a class="btn btn-link px-0 mt-3" href="{{ url_for('matches.heroes') }}">&larr; All heroes</a>
 {% endblock %}

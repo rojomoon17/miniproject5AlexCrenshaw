@@ -2,6 +2,7 @@
 # Alex Crenshaw
 # Mini Project 5
 
+import re
 import sqlite3
 
 from flask import (
@@ -13,7 +14,10 @@ from deadlocktracker.db import get_db
 
 bp = Blueprint("matches", __name__)
 
-TEAMS = ("Amber Hand", "Sapphire Flame")
+TEAMS = ("Hidden King", "Archmother")
+LANES = ("Yellow", "Blue", "Green")
+# Bootstrap colour used for each lane's badges and buttons.
+LANE_STYLES = {"Yellow": "warning", "Blue": "primary", "Green": "success"}
 
 # Deadlock is 6v6, so every match has 12 heroes: you plus 5 teammates, against
 # 6 enemies. Lanes are always 2v2: you and 1 lane partner against 2 lane opponents.
@@ -26,14 +30,33 @@ LANE_OPPONENTS = 2
 SAVE_ERROR = ("That match couldn't be saved because it conflicts with data that's already "
               "saved. Check the heroes and try again.")
 
+# Match length is entered as minutes:seconds and stored in seconds.
+DURATION_RE = re.compile(r"^(\d{1,3}):([0-5]\d)$")
+MAX_DURATION_SEC = 240 * 60
+MAX_HERO_NOTE_LENGTH = 5000
+
+# Souls per minute for one match. Expects match_log aliased as m.
+SPM_EXPR = """
+    CASE WHEN m.duration_sec > 0 AND m.souls IS NOT NULL
+         THEN CAST(ROUND(m.souls * 60.0 / m.duration_sec) AS INTEGER) END
+"""
+
+# Souls per minute across several matches: total souls / total minutes, counting
+# only matches where both were recorded. Heroes farm at very different rates,
+# so this is only ever used for matches on a single hero.
+SPM_AGG = """
+    CAST(ROUND(SUM(CASE WHEN m.duration_sec > 0 AND m.souls IS NOT NULL THEN m.souls END) * 60.0
+         / SUM(CASE WHEN m.duration_sec > 0 AND m.souls IS NOT NULL THEN m.duration_sec END))
+         AS INTEGER)
+"""
+
 # Shared SELECT for match rows, with the hero name, a KDA ratio
 # ((kills + assists) / deaths, treating 0 deaths as 1), souls per minute,
 # and the names of your lane opponents.
-MATCH_SELECT = """
+MATCH_SELECT = f"""
     SELECT m.*, h.name AS hero_name,
            ROUND((m.kills + m.assists) * 1.0 / MAX(m.deaths, 1), 2) AS kda,
-           CASE WHEN m.duration_min > 0 AND m.souls IS NOT NULL
-                THEN CAST(ROUND(m.souls * 1.0 / m.duration_min) AS INTEGER) END AS spm,
+           {SPM_EXPR} AS spm,
            (SELECT GROUP_CONCAT(oh.name, ', ')
               FROM match_player p JOIN hero oh ON oh.id = p.hero_id
              WHERE p.match_id = m.id AND p.side = 'enemy' AND p.in_lane = 1) AS lane_opponents
@@ -41,13 +64,17 @@ MATCH_SELECT = """
     JOIN hero h ON h.id = m.hero_id
 """
 
-# Souls per minute across many matches: total souls / total minutes, counting
-# only matches where both were recorded. Expects match_log aliased as m.
-SPM_AGG = """
-    CAST(ROUND(SUM(CASE WHEN m.duration_min > 0 AND m.souls IS NOT NULL THEN m.souls END) * 1.0
-         / SUM(CASE WHEN m.duration_min > 0 AND m.souls IS NOT NULL THEN m.duration_min END))
-         AS INTEGER)
-"""
+
+def format_duration(seconds):
+    """Seconds -> "m:ss" (e.g. 2052 -> "34:12"), or "" if not recorded."""
+    if seconds is None:
+        return ""
+    return f"{seconds // 60}:{seconds % 60:02d}"
+
+
+@bp.app_template_filter("mmss")
+def mmss_filter(seconds):
+    return format_duration(seconds) or "—"
 
 
 def blank_slots():
@@ -64,7 +91,8 @@ def inject_heroes():
     if g.get("user") is None:
         return {}
     heroes = get_db().execute("SELECT id, name FROM hero ORDER BY name").fetchall()
-    return {"all_heroes": heroes, "teams": TEAMS, "blank_slots": blank_slots}
+    return {"all_heroes": heroes, "teams": TEAMS, "lane_styles": LANE_STYLES,
+            "blank_slots": blank_slots}
 
 
 def get_match(id, check_owner=True):
@@ -78,6 +106,20 @@ def get_match(id, check_owner=True):
         abort(403, "That match was logged by another player, so you can't view or change it.")
 
     return match
+
+
+def get_hero(id):
+    hero = get_db().execute("SELECT * FROM hero WHERE id = ?", (id,)).fetchone()
+    if hero is None:
+        abort(404, "That hero isn't in the roster.")
+    return hero
+
+
+def form_values(match):
+    """A saved match as form values (the form shows length as m:ss)."""
+    values = dict(match)
+    values["duration"] = format_duration(match["duration_sec"])
+    return values
 
 
 def slots_from_form(form):
@@ -161,7 +203,6 @@ NUMBER_FIELDS = (
     ("deaths", "Deaths", 0, 200),
     ("assists", "Assists", 0, 200),
     ("souls", "Souls", None, 1_000_000),
-    ("duration_min", "Length", None, 240),
 )
 MAX_NOTES_LENGTH = 2000
 
@@ -182,14 +223,32 @@ def parse_number(form, field, label, default, maximum):
     return value, None
 
 
+def parse_duration(raw):
+    """Read a match length typed as m:ss (or whole minutes). Returns (seconds, error)."""
+    raw = (raw or "").strip()
+    if raw == "":
+        return None, None
+    found = DURATION_RE.match(raw)
+    if found:
+        seconds = int(found[1]) * 60 + int(found[2])
+    elif raw.isdigit():
+        seconds = int(raw) * 60
+    else:
+        return None, "Length must be minutes:seconds, like 34:12."
+    if seconds > MAX_DURATION_SEC:
+        return None, f"Length looks too long (the most allowed is {format_duration(MAX_DURATION_SEC)})."
+    return seconds, None
+
+
 def parse_match_form():
     """Validate the submitted match form. Returns (data, error)."""
     form = request.form
     hero_id = form.get("hero_id", type=int)
     result = form.get("result")
+    lane = form.get("lane")
     team = form.get("team") or None
     notes = form.get("notes", "").strip() or None
-    data = {"hero_id": hero_id, "result": result, "team": team, "notes": notes}
+    data = {"hero_id": hero_id, "result": result, "lane": lane, "team": team, "notes": notes}
 
     hero_names = {
         row["id"]: row["name"]
@@ -200,12 +259,17 @@ def parse_match_form():
         return None, "Please choose a hero."
     if result not in ("Win", "Loss"):
         return None, "Please choose Win or Loss."
+    if lane not in LANES:
+        return None, "Please choose the lane you played: Yellow, Blue or Green."
     if team is not None and team not in TEAMS:
         return None, "Please choose a side from the list."
     for field, label, default, maximum in NUMBER_FIELDS:
         data[field], error = parse_number(form, field, label, default, maximum)
         if error is not None:
             return None, error
+    data["duration_sec"], error = parse_duration(form.get("duration"))
+    if error is not None:
+        return None, error
     if notes is not None and len(notes) > MAX_NOTES_LENGTH:
         return None, f"Notes can be at most {MAX_NOTES_LENGTH:,} characters (yours are {len(notes):,})."
 
@@ -224,6 +288,11 @@ def save_players(db, match_id, players):
         "INSERT INTO match_player (match_id, hero_id, side, in_lane) VALUES (?, ?, ?, ?)",
         [(match_id, hero_id, side, in_lane) for hero_id, side, in_lane in players],
     )
+
+
+def match_params(data):
+    return (data["hero_id"], data["result"], data["lane"], data["team"], data["kills"],
+            data["deaths"], data["assists"], data["souls"], data["duration_sec"], data["notes"])
 
 
 @bp.route("/")
@@ -247,12 +316,10 @@ def create():
             db = get_db()
             try:
                 cur = db.execute(
-                    "INSERT INTO match_log (user_id, hero_id, result, team, kills, deaths,"
-                    " assists, souls, duration_min, notes)"
-                    " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    (g.user["id"], data["hero_id"], data["result"], data["team"],
-                     data["kills"], data["deaths"], data["assists"], data["souls"],
-                     data["duration_min"], data["notes"]),
+                    "INSERT INTO match_log (hero_id, result, lane, team, kills, deaths, assists,"
+                    " souls, duration_sec, notes, user_id)"
+                    " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    match_params(data) + (g.user["id"],),
                 )
                 save_players(db, cur.lastrowid, data["players"])
                 db.commit()
@@ -297,12 +364,10 @@ def update(id):
             db = get_db()
             try:
                 db.execute(
-                    "UPDATE match_log SET hero_id = ?, result = ?, team = ?, kills = ?,"
-                    " deaths = ?, assists = ?, souls = ?, duration_min = ?, notes = ?"
+                    "UPDATE match_log SET hero_id = ?, result = ?, lane = ?, team = ?, kills = ?,"
+                    " deaths = ?, assists = ?, souls = ?, duration_sec = ?, notes = ?"
                     " WHERE id = ?",
-                    (data["hero_id"], data["result"], data["team"], data["kills"],
-                     data["deaths"], data["assists"], data["souls"],
-                     data["duration_min"], data["notes"], id),
+                    match_params(data) + (id,),
                 )
                 save_players(db, id, data["players"])
                 db.commit()
@@ -317,7 +382,7 @@ def update(id):
         return render_template("matches/update.html", match=match, m=request.form,
                                slots=slots_from_form(request.form))
 
-    return render_template("matches/update.html", match=match, m=match,
+    return render_template("matches/update.html", match=match, m=form_values(match),
                            slots=slots_from_db(id))
 
 
@@ -337,13 +402,14 @@ def delete(id):
 @login_required
 def stats():
     db = get_db()
+    # Souls and souls/min aren't averaged across heroes here: heroes farm at
+    # very different rates, so those only appear per hero.
     overall = db.execute(
         "SELECT COUNT(*) AS games,"
         "       COALESCE(SUM(m.result = 'Win'), 0) AS wins,"
         "       ROUND((COALESCE(SUM(m.kills), 0) + COALESCE(SUM(m.assists), 0)) * 1.0"
         "             / MAX(COALESCE(SUM(m.deaths), 0), 1), 2) AS kda,"
-        "       ROUND(AVG(m.souls)) AS avg_souls,"
-        f"      {SPM_AGG} AS spm"
+        "       COUNT(DISTINCT m.hero_id) AS heroes_played"
         " FROM match_log m WHERE m.user_id = ?",
         (g.user["id"],),
     ).fetchone()
@@ -364,8 +430,22 @@ def stats():
     return render_template("matches/stats.html", overall=overall, per_hero=per_hero)
 
 
-def matchup_stats(side, lane_only):
-    """Your record when each hero was on the given side (optionally only in your lane)."""
+def played_heroes():
+    """Heroes the current user has logged matches on, most played first."""
+    return get_db().execute(
+        "SELECT h.id, h.name, COUNT(*) AS games"
+        " FROM match_log m JOIN hero h ON h.id = m.hero_id"
+        " WHERE m.user_id = ? GROUP BY h.id ORDER BY games DESC, h.name",
+        (g.user["id"],),
+    ).fetchall()
+
+
+def matchup_stats(hero_id, side, lane_only):
+    """Your record on one hero, against or alongside each other hero.
+
+    Matchups are kept separate per hero you played: beating a hero in lane on
+    Apollo says nothing about how you do against them on Shiv.
+    """
     return get_db().execute(
         "SELECT h.id, h.name, COUNT(*) AS games,"
         "       SUM(m.result = 'Win') AS wins,"
@@ -374,22 +454,40 @@ def matchup_stats(side, lane_only):
         " FROM match_player p"
         " JOIN match_log m ON m.id = p.match_id"
         " JOIN hero h ON h.id = p.hero_id"
-        " WHERE m.user_id = ? AND p.side = ? AND p.in_lane >= ?"
+        " WHERE m.user_id = ? AND m.hero_id = ? AND p.side = ? AND p.in_lane >= ?"
         " GROUP BY h.id ORDER BY games DESC, win_rate DESC, h.name",
-        (g.user["id"], side, 1 if lane_only else 0),
+        (g.user["id"], hero_id, side, 1 if lane_only else 0),
     ).fetchall()
+
+
+def best_and_toughest(rows, limit=3):
+    """Split matchup rows into your best (50%+ win rate) and toughest (under 50%)."""
+    best = sorted((r for r in rows if r["win_rate"] >= 50),
+                  key=lambda r: (-r["win_rate"], -r["games"], r["name"]))
+    toughest = sorted((r for r in rows if r["win_rate"] < 50),
+                      key=lambda r: (r["win_rate"], -r["games"], r["name"]))
+    return best[:limit], toughest[:limit]
 
 
 @bp.route("/matchups")
 @login_required
 def matchups():
+    played = played_heroes()
+    if not played:
+        return render_template("matches/matchups.html", played=played, selected=None, tabs=[])
+
+    hero_id = request.args.get("hero", type=int)
+    selected = next((h for h in played if h["id"] == hero_id), played[0])
+    if hero_id is not None and selected["id"] != hero_id:
+        flash(f"You haven't logged any matches on that hero, so here's {selected['name']}.", "info")
+
     tabs = [
-        ("lane-opponents", "Lane opponents", "vs", matchup_stats("enemy", True)),
-        ("lane-partners", "Lane partners", "with", matchup_stats("ally", True)),
-        ("enemies", "Enemy team", "vs", matchup_stats("enemy", False)),
-        ("allies", "Your team", "with", matchup_stats("ally", False)),
+        ("lane-opponents", "Lane opponents", "vs", matchup_stats(selected["id"], "enemy", True)),
+        ("lane-partners", "Lane partners", "with", matchup_stats(selected["id"], "ally", True)),
+        ("enemies", "Enemy team", "vs", matchup_stats(selected["id"], "enemy", False)),
+        ("allies", "Your team", "with", matchup_stats(selected["id"], "ally", False)),
     ]
-    return render_template("matches/matchups.html", tabs=tabs)
+    return render_template("matches/matchups.html", played=played, selected=selected, tabs=tabs)
 
 
 @bp.route("/heroes")
@@ -409,14 +507,85 @@ def heroes():
 @bp.route("/heroes/<int:id>")
 @login_required
 def hero(id):
+    hero = get_hero(id)
     db = get_db()
-    hero = db.execute("SELECT * FROM hero WHERE id = ?", (id,)).fetchone()
-    if hero is None:
-        abort(404, "That hero isn't in the roster.")
+    params = (g.user["id"], id)
 
-    matches = db.execute(
-        MATCH_SELECT + " WHERE m.user_id = ? AND m.hero_id = ?"
-        " ORDER BY m.played DESC, m.id DESC",
-        (g.user["id"], id),
+    summary = db.execute(
+        "SELECT COUNT(*) AS games,"
+        "       COALESCE(SUM(m.result = 'Win'), 0) AS wins,"
+        "       ROUND((COALESCE(SUM(m.kills), 0) + COALESCE(SUM(m.assists), 0)) * 1.0"
+        "             / MAX(COALESCE(SUM(m.deaths), 0), 1), 2) AS kda,"
+        "       ROUND(AVG(m.souls)) AS avg_souls,"
+        f"      {SPM_AGG} AS spm"
+        " FROM match_log m WHERE m.user_id = ? AND m.hero_id = ?",
+        params,
+    ).fetchone()
+
+    if summary["games"] == 0:
+        return render_template("matches/hero.html", hero=hero, summary=summary)
+
+    by_lane = db.execute(
+        "SELECT m.lane, COUNT(*) AS games,"
+        "       SUM(m.result = 'Win') AS wins,"
+        "       ROUND(100.0 * SUM(m.result = 'Win') / COUNT(*), 1) AS win_rate,"
+        "       ROUND((SUM(m.kills) + SUM(m.assists)) * 1.0 / MAX(SUM(m.deaths), 1), 2) AS kda,"
+        f"      {SPM_AGG} AS spm"
+        " FROM match_log m WHERE m.user_id = ? AND m.hero_id = ?"
+        " GROUP BY m.lane ORDER BY win_rate DESC, games DESC",
+        params,
     ).fetchall()
-    return render_template("matches/hero.html", hero=hero, matches=matches)
+
+    best_opponents, toughest_opponents = best_and_toughest(matchup_stats(id, "enemy", True))
+    best_partners, toughest_partners = best_and_toughest(matchup_stats(id, "ally", True))
+    best_teammates, _ = best_and_toughest(matchup_stats(id, "ally", False))
+    _, toughest_enemies = best_and_toughest(matchup_stats(id, "enemy", False))
+
+    note = db.execute(
+        "SELECT body, updated FROM hero_note WHERE user_id = ? AND hero_id = ?", params
+    ).fetchone()
+    match_notes = db.execute(
+        "SELECT id, played, result, lane, notes FROM match_log"
+        " WHERE user_id = ? AND hero_id = ? AND notes IS NOT NULL"
+        " ORDER BY played DESC, id DESC",
+        params,
+    ).fetchall()
+    matches = db.execute(
+        MATCH_SELECT + " WHERE m.user_id = ? AND m.hero_id = ? ORDER BY m.played DESC, m.id DESC",
+        params,
+    ).fetchall()
+
+    return render_template(
+        "matches/hero.html", hero=hero, summary=summary, by_lane=by_lane,
+        best_opponents=best_opponents, toughest_opponents=toughest_opponents,
+        best_partners=best_partners, toughest_partners=toughest_partners,
+        best_teammates=best_teammates, toughest_enemies=toughest_enemies,
+        note=note, match_notes=match_notes, matches=matches,
+    )
+
+
+@bp.route("/heroes/<int:id>/notes", methods=("POST",))
+@login_required
+def hero_notes(id):
+    """Save (or clear) your own notes about a hero."""
+    get_hero(id)
+    body = request.form.get("body", "").strip()
+    if len(body) > MAX_HERO_NOTE_LENGTH:
+        flash(f"Hero notes can be at most {MAX_HERO_NOTE_LENGTH:,} characters "
+              f"(yours are {len(body):,}).", "danger")
+        return redirect(url_for("matches.hero", id=id) + "#notes")
+
+    db = get_db()
+    if body:
+        db.execute(
+            "INSERT INTO hero_note (user_id, hero_id, body) VALUES (?, ?, ?)"
+            " ON CONFLICT (user_id, hero_id)"
+            " DO UPDATE SET body = excluded.body, updated = CURRENT_TIMESTAMP",
+            (g.user["id"], id, body),
+        )
+        flash("Notes saved.", "success")
+    else:
+        db.execute("DELETE FROM hero_note WHERE user_id = ? AND hero_id = ?", (g.user["id"], id))
+        flash("Notes cleared.", "info")
+    db.commit()
+    return redirect(url_for("matches.hero", id=id) + "#notes")

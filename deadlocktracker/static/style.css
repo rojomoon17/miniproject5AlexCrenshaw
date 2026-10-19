@@ -36,6 +36,21 @@
   border-color: var(--bs-warning);
 }
 
+.win-rate-label {
+  min-width: 3.5rem;
+  text-align: right;
+}
+
+.hero-card-unplayed {
+  opacity: 0.55;
+}
+
 .notes {
   white-space: pre-wrap;
+}
+
+/* Match notes on a hero page scroll inside their card instead of growing forever. */
+.notes-list {
+  max-height: 22rem;
+  overflow-y: auto;
 }

@@ -4,6 +4,8 @@
   <h1>{% block title %}Heroes{% endblock %}</h1>
   {% if not g.user %}
     <p class="text-body-secondary mb-0"><a href="{{ url_for('auth.login') }}">Log in</a> to see your record on each hero.</p>
+  {% else %}
+    <p class="text-body-secondary mb-0">Heroes you've played open a page with your lanes, matchups and notes.</p>
   {% endif %}
 {% endblock %}
 
@@ -11,10 +13,10 @@
   <div class="row row-cols-2 row-cols-md-4 row-cols-lg-6 g-3">
     {% for hero in heroes %}
       <div class="col">
-        <div class="card h-100 hero-card">
+        <div class="card h-100 hero-card {{ 'hero-card-unplayed' if g.user and not hero['games'] }}">
           <div class="card-body">
             <h2 class="h6 card-title mb-1">
-              {% if g.user %}
+              {% if g.user and hero['games'] %}
                 <a class="stretched-link text-reset text-decoration-none" href="{{ url_for('matches.hero', id=hero['id']) }}">{{ hero['name'] }}</a>
               {% else %}
                 {{ hero['name'] }}

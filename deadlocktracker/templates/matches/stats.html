@@ -11,7 +11,7 @@
       <a class="btn btn-warning" href="{{ url_for('matches.create') }}">Log match</a>
     </div>
   {% else %}
-    <div class="row row-cols-2 row-cols-md-5 g-3 mb-4">
+    <div class="row row-cols-2 row-cols-md-4 g-3 mb-2">
       <div class="col">
         <div class="card h-100 text-center"><div class="card-body">
           <div class="stat-label">Games</div>
@@ -32,17 +32,15 @@
       </div>
       <div class="col">
         <div class="card h-100 text-center"><div class="card-body">
-          <div class="stat-label">Avg souls</div>
-          <div class="stat-value">{{ '{:,}'.format(overall['avg_souls']|int) if overall['avg_souls'] is not none else '—' }}</div>
-        </div></div>
-      </div>
-      <div class="col">
-        <div class="card h-100 text-center"><div class="card-body">
-          <div class="stat-label">Souls / min</div>
-          <div class="stat-value">{{ '{:,}'.format(overall['spm']) if overall['spm'] is not none else '—' }}</div>
+          <div class="stat-label">Heroes played</div>
+          <div class="stat-value">{{ overall['heroes_played'] }}</div>
         </div></div>
       </div>
     </div>
+    <p class="small text-body-secondary mb-4">
+      Souls and souls/min are only shown per hero, because heroes farm at very different rates.
+      Click a hero for lanes, matchups and notes.
+    </p>
 
     <h2 class="h4">By hero</h2>
     <div class="table-responsive">
@@ -65,10 +63,13 @@
               <td class="text-end">{{ row['games'] }}</td>
               <td class="text-end">{{ row['wins'] }} - {{ row['games'] - row['wins'] }}</td>
               <td>
-                <div class="progress" role="progressbar" aria-label="{{ row['name'] }} win rate"
-                     aria-valuenow="{{ row['win_rate'] }}" aria-valuemin="0" aria-valuemax="100">
-                  <div class="progress-bar {{ 'bg-success' if row['win_rate'] >= 50 else 'bg-danger' }}"
-                       style="width: {{ row['win_rate'] }}%">{{ row['win_rate'] }}%</div>
+                <div class="d-flex align-items-center gap-2">
+                  <div class="progress flex-grow-1" role="progressbar" aria-label="{{ row['name'] }} win rate"
+                       aria-valuenow="{{ row['win_rate'] }}" aria-valuemin="0" aria-valuemax="100">
+                    <div class="progress-bar {{ 'bg-success' if row['win_rate'] >= 50 else 'bg-danger' }}"
+                         style="width: {{ row['win_rate'] }}%"></div>
+                  </div>
+                  <span class="small win-rate-label">{{ row['win_rate'] }}%</span>
                 </div>
               </td>
               <td class="text-end">{{ row['kda'] }}</td>
