@@ -6,9 +6,11 @@
         <th>Date</th>
         <th>Hero</th>
         <th>Result</th>
+        <th>Lane</th>
         <th class="text-end">K / D / A</th>
         <th class="text-end">KDA</th>
         <th class="text-end">Souls</th>
+        <th class="text-end">Length</th>
         <th class="text-end">Souls/min</th>
         <th>Lane vs</th>
         <th></th>
@@ -18,15 +20,17 @@
       {% for match in matches %}
         <tr>
           <td>{{ match['played'].strftime('%b %d, %Y') }}</td>
-          <td>{{ match['hero_name'] }}</td>
+          <td><a class="text-reset" href="{{ url_for('matches.hero', id=match['hero_id']) }}">{{ match['hero_name'] }}</a></td>
           <td>
             <span class="badge {{ 'text-bg-success' if match['result'] == 'Win' else 'text-bg-danger' }}">
               {{ match['result'] }}
             </span>
           </td>
+          <td><span class="badge rounded-pill text-bg-{{ lane_styles[match['lane']] }}">{{ match['lane'] }}</span></td>
           <td class="text-end">{{ match['kills'] }} / {{ match['deaths'] }} / {{ match['assists'] }}</td>
           <td class="text-end">{{ match['kda'] }}</td>
           <td class="text-end">{{ '{:,}'.format(match['souls']) if match['souls'] is not none else '—' }}</td>
+          <td class="text-end">{{ match['duration_sec']|mmss }}</td>
           <td class="text-end">{{ '{:,}'.format(match['spm']) if match['spm'] is not none else '—' }}</td>
           <td class="small">{{ match['lane_opponents'] or '—' }}</td>
           <td class="text-end">

@@ -1,3 +1,4 @@
+DROP TABLE IF EXISTS hero_note;
 DROP TABLE IF EXISTS match_player;
 DROP TABLE IF EXISTS match_log;
 DROP TABLE IF EXISTS hero;
@@ -15,17 +16,19 @@ CREATE TABLE hero (
 );
 
 -- "match" is an SQLite keyword, so the table is called match_log.
+-- duration_sec is the match length in seconds (entered and shown as m:ss).
 CREATE TABLE match_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id INTEGER NOT NULL,
   hero_id INTEGER NOT NULL,
   result TEXT NOT NULL CHECK (result IN ('Win', 'Loss')),
-  team TEXT CHECK (team IN ('Amber Hand', 'Sapphire Flame')),
+  lane TEXT NOT NULL CHECK (lane IN ('Yellow', 'Blue', 'Green')),
+  team TEXT CHECK (team IN ('Hidden King', 'Archmother')),
   kills INTEGER NOT NULL DEFAULT 0,
   deaths INTEGER NOT NULL DEFAULT 0,
   assists INTEGER NOT NULL DEFAULT 0,
   souls INTEGER,
-  duration_min INTEGER,
+  duration_sec INTEGER,
   notes TEXT,
   played TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES user (id),
@@ -45,6 +48,19 @@ CREATE TABLE match_player (
   FOREIGN KEY (match_id) REFERENCES match_log (id) ON DELETE CASCADE,
   FOREIGN KEY (hero_id) REFERENCES hero (id),
   UNIQUE (match_id, hero_id)
+);
+
+-- A player's own notes about a hero (builds, tips, what to work on).
+-- One note per player per hero, shown on the hero's page.
+CREATE TABLE hero_note (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER NOT NULL,
+  hero_id INTEGER NOT NULL,
+  body TEXT NOT NULL,
+  updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES user (id),
+  FOREIGN KEY (hero_id) REFERENCES hero (id),
+  UNIQUE (user_id, hero_id)
 );
 
 -- Hero roster. Valve adds heroes regularly; add new ones here and re-run init-db.

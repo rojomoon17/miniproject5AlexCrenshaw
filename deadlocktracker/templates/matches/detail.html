@@ -5,10 +5,11 @@
 {% block header %}
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
     <h1 class="mb-0">
-      {{ match['hero_name'] }}
+      <a class="text-reset text-decoration-none" href="{{ url_for('matches.hero', id=match['hero_id']) }}">{{ match['hero_name'] }}</a>
       <span class="badge fs-6 align-middle {{ 'text-bg-success' if match['result'] == 'Win' else 'text-bg-danger' }}">
         {{ match['result'] }}
       </span>
+      <span class="badge rounded-pill fs-6 align-middle text-bg-{{ lane_styles[match['lane']] }}">{{ match['lane'] }} lane</span>
     </h1>
     <div class="d-flex gap-2">
       <a class="btn btn-outline-light" href="{{ url_for('matches.update', id=match['id']) }}">Edit</a>
@@ -50,7 +51,7 @@
     <div class="col">
       <div class="card h-100 text-center"><div class="card-body">
         <div class="stat-label">Length</div>
-        <div class="stat-value">{{ match['duration_min'] ~ ' min' if match['duration_min'] is not none else '—' }}</div>
+        <div class="stat-value">{{ match['duration_sec']|mmss }}</div>
       </div></div>
     </div>
   </div>
