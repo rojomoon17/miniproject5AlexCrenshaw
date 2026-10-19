@@ -7,6 +7,8 @@ import sqlite3
 import click
 from flask import current_app, g
 
+from deadlocktracker.ratings import age_weight
+
 
 def get_db():
     """Return the SQLite connection for this request, opening it if needed."""
@@ -18,6 +20,10 @@ def get_db():
         g.db.row_factory = sqlite3.Row
         # SQLite only enforces FOREIGN KEY constraints when this is on.
         g.db.execute("PRAGMA foreign_keys = ON")
+        # Lets queries weight games by age, e.g.
+        # SUM(age_weight(julianday('now') - julianday(m.played))). SQLite works out
+        # the age in days, so Python only does the arithmetic (fast for big tables).
+        g.db.create_function("age_weight", 1, age_weight, deterministic=True)
     return g.db
 
 
