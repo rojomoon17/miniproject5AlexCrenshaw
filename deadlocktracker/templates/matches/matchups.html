@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+
+{% block header %}
+  <h1>{% block title %}Matchups{% endblock %}</h1>
+  <p class="text-body-secondary mb-0">
+    Your record against and alongside each hero, from the teams you've recorded on your matches.
+  </p>
+{% endblock %}
+
+{% block content %}
+  <ul class="nav nav-tabs mb-3" role="tablist">
+    {% for key, label, _, rows in tabs %}
+      <li class="nav-item" role="presentation">
+        <button class="nav-link {{ 'active' if loop.first }}" id="{{ key }}-tab" data-bs-toggle="tab"
+                data-bs-target="#{{ key }}" type="button" role="tab" aria-controls="{{ key }}"
+                aria-selected="{{ 'true' if loop.first else 'false' }}">
+          {{ label }} <span class="badge text-bg-secondary">{{ rows|length }}</span>
+        </button>
+      </li>
+    {% endfor %}
+  </ul>
+
+  <div class="tab-content">
+    {% for key, label, verb, rows in tabs %}
+      <div class="tab-pane fade {{ 'show active' if loop.first }}" id="{{ key }}" role="tabpanel"
+           aria-labelledby="{{ key }}-tab" tabindex="0">
+        {% if rows %}
+          <div class="table-responsive">
+            <table class="table align-middle">
+              <thead>
+                <tr>
+                  <th>{{ verb|capitalize }} hero</th>
+                  <th class="text-end">Games</th>
+                  <th class="text-end">W - L</th>
+                  <th style="min-width: 160px">Your win rate</th>
+                  <th class="text-end">Your souls/min</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in rows %}
+                  <tr>
+                    <td><a href="{{ url_for('matches.hero', id=row['id']) }}">{{ row['name'] }}</a></td>
+                    <td class="text-end">{{ row['games'] }}</td>
+                    <td class="text-end">{{ row['wins'] }} - {{ row['games'] - row['wins'] }}</td>
+                    <td>
+                      <div class="progress" role="progressbar" aria-label="Win rate {{ verb }} {{ row['name'] }}"
+                           aria-valuenow="{{ row['win_rate'] }}" aria-valuemin="0" aria-valuemax="100">
+                        <div class="progress-bar {{ 'bg-success' if row['win_rate'] >= 50 else 'bg-danger' }}"
+                             style="width: {{ row['win_rate'] }}%">{{ row['win_rate'] }}%</div>
+                      </div>
+                    </td>
+                    <td class="text-end">{{ '{:,}'.format(row['spm']) if row['spm'] is not none else '—' }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="text-center py-5 border rounded-3">
+            <p class="fs-5 mb-1">Nothing here yet.</p>
+            <p class="text-body-secondary">Log a match and your matchups will show up here.</p>
+            <a class="btn btn-warning" href="{{ url_for('matches.create') }}">Log match</a>
+          </div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+{% endblock %}

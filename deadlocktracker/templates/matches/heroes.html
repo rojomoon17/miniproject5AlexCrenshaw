@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+
+{% block header %}
+  <h1>{% block title %}Heroes{% endblock %}</h1>
+  {% if not g.user %}
+    <p class="text-body-secondary mb-0"><a href="{{ url_for('auth.login') }}">Log in</a> to see your record on each hero.</p>
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  <div class="row row-cols-2 row-cols-md-4 row-cols-lg-6 g-3">
+    {% for hero in heroes %}
+      <div class="col">
+        <div class="card h-100 hero-card">
+          <div class="card-body">
+            <h2 class="h6 card-title mb-1">
+              {% if g.user %}
+                <a class="stretched-link text-reset text-decoration-none" href="{{ url_for('matches.hero', id=hero['id']) }}">{{ hero['name'] }}</a>
+              {% else %}
+                {{ hero['name'] }}
+              {% endif %}
+            </h2>
+            {% if g.user %}
+              <small class="text-body-secondary">
+                {% if hero['games'] %}
+                  {{ hero['wins'] }}W - {{ hero['games'] - hero['wins'] }}L
+                {% else %}
+                  Not played
+                {% endif %}
+              </small>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% endblock %}
