@@ -513,7 +513,7 @@ def stats():
 RANKING_SORTS = {
     "rating": ("Rating", lambda r: (-r["rating"], -r["games"], r["name"])),
     "low": ("Safe estimate (low end of range)", lambda r: (-r["low"], -r["games"], r["name"])),
-    "win_rate": ("Win rate", lambda r: (-r["win_rate"], -r["games"], r["name"])),
+    "win_rate": ("Win rate (all games, unadjusted)", lambda r: (-r["win_rate"], -r["games"], r["name"])),
     "games": ("Games played", lambda r: (-r["games"], -r["rating"], r["name"])),
     "kda": ("KDA", lambda r: (-r["kda"], -r["games"], r["name"])),
 }

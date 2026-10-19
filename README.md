@@ -38,8 +38,14 @@ from Valve or any third-party stats service.
 - **Rankings** page: your heroes with at least 10 games, ranked from best to worst by their
   **rating** (see below), with a podium for your top three, a range bar for each hero and each hero's
   best lane. Heroes with fewer games are listed separately under "Not enough games yet" with how many
-  more games they need. A GET form lets you rank by rating, the safe (low-end) estimate, raw win
-  rate, games played or KDA
+  more games they need. A GET form lets you rank by rating, the safe (low-end) estimate, win rate
+  (all games, unadjusted), games played or KDA. The first three can give different orders:
+  - **Rating** is the best single guess at how good you are on a hero now
+  - **Safe estimate** puts the heroes you're surest about first, so a big solid record (65-35)
+    beats a short hot streak (8-2) even when their ratings are close
+  - **Win rate (all games, unadjusted)** is your all-time record with nothing adjusted. It differs
+    most from rating when results have changed over time: a hero you went 30-10 on months ago and
+    3-7 on recently still shows 66% here but rates around 46%
 - Dark Bootstrap 5 theme, responsive down to phone width
 
 ## How the rating works
