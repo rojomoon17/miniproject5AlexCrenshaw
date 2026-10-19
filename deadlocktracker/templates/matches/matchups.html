@@ -33,7 +33,7 @@
       </div>
     </form>
 
-    {% with baseline_label = 'your win rate on ' ~ selected['name'], prior = matchup_prior_games %}
+    {% with baseline_label = 'your win rate on ' ~ selected['name'] %}
       {% include 'matches/_rating_help.html' %}
     {% endwith %}
 

@@ -36,6 +36,50 @@
   border-color: var(--bs-warning);
 }
 
+/* Rating range bar (templates/matches/_rating_range.html), 0-100% wide. */
+.rating-range {
+  position: relative;
+  height: 0.75rem;
+  min-width: 6rem;
+  border-radius: 0.375rem;
+  background: var(--bs-secondary-bg);
+}
+
+.rating-range-band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: 0.375rem;
+  background: rgba(var(--bs-secondary-rgb), 0.6);
+}
+
+.rating-range-band.is-good {
+  background: rgba(var(--bs-success-rgb), 0.7);
+}
+
+.rating-range-band.is-bad {
+  background: rgba(var(--bs-danger-rgb), 0.7);
+}
+
+.rating-range-baseline {
+  position: absolute;
+  top: -0.2rem;
+  bottom: -0.2rem;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--bs-warning);
+}
+
+.rating-range-dot {
+  position: absolute;
+  top: 50%;
+  width: 0.55rem;
+  height: 0.55rem;
+  margin: -0.275rem 0 0 -0.275rem;
+  border-radius: 50%;
+  background: var(--bs-body-color);
+}
+
 .win-rate-label {
   min-width: 3.5rem;
   text-align: right;

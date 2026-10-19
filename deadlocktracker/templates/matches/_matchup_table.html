@@ -1,14 +1,16 @@
-{# Matchup table. Expects `rows` (rated matchup_stats rows) and `title` (first column heading). #}
+{# Matchup table. Expects `rows` (rated matchup_stats rows), `title` (first column heading)
+   and `baseline` (0-100). #}
 <div class="table-responsive">
   <table class="table align-middle">
     <thead>
       <tr>
         <th>{{ title }}</th>
         <th class="text-end">Rating</th>
-        <th>Sample</th>
+        <th style="min-width: 200px">Likely range</th>
         <th class="text-end">Games</th>
         <th class="text-end">W - L</th>
-        <th style="min-width: 160px">Win rate</th>
+        <th class="text-end">Win rate</th>
+        <th>Sample</th>
         <th class="text-end">Your souls/min</th>
       </tr>
     </thead>
@@ -17,19 +19,11 @@
         <tr>
           <td>{{ row['name'] }}</td>
           <td class="text-end fw-semibold {{ 'text-success' if row['rating'] >= baseline else 'text-danger' }}">{{ row['rating'] }}%</td>
-          <td>{% include 'matches/_confidence.html' %}</td>
+          <td>{% include 'matches/_rating_range.html' %}</td>
           <td class="text-end">{{ row['games'] }}</td>
           <td class="text-end">{{ row['wins'] }} - {{ row['games'] - row['wins'] }}</td>
-          <td>
-            <div class="d-flex align-items-center gap-2">
-              <div class="progress flex-grow-1" role="progressbar" aria-label="Win rate: {{ row['name'] }}"
-                   aria-valuenow="{{ row['win_rate'] }}" aria-valuemin="0" aria-valuemax="100">
-                <div class="progress-bar {{ 'bg-success' if row['win_rate'] >= 50 else 'bg-danger' }}"
-                     style="width: {{ row['win_rate'] }}%"></div>
-              </div>
-              <span class="small win-rate-label">{{ row['win_rate'] }}%</span>
-            </div>
-          </td>
+          <td class="text-end">{{ row['win_rate'] }}%</td>
+          <td>{% include 'matches/_confidence.html' %}</td>
           <td class="text-end">{{ '{:,}'.format(row['spm']) if row['spm'] is not none else '—' }}</td>
         </tr>
       {% endfor %}

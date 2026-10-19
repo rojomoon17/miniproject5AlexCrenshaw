@@ -1,8 +1,8 @@
-{# Explains the rating. Expects `prior` (games of weighting), `baseline` (the win rate it
-   starts from) and `baseline_label`. #}
+{# Explains ratings. Expects `baseline` (0-100) and `baseline_label`. #}
 <p class="small text-body-secondary mb-3">
-  <strong>Rating</strong> is a win rate that counts experience: every record starts as if it already
-  had {{ prior }} games at {{ baseline_label }} ({{ baseline }}%), so it only moves far from that
-  after several games. A 1-0 record barely moves; a 6-1 record moves a lot.
-  <a class="link-secondary" href="{{ url_for('matches.rankings') }}#how">How it works</a>
+  <strong>Ratings</strong> are win rates adjusted for how many games there are and how recent they are
+  (a game {{ half_life_days }} days old counts half as much as one today). Each starts from
+  {{ baseline_label }} ({{ baseline }}%, the line on the bars) and only moves away from it as the games add up.
+  The shaded band is the likely range ({{ range_percent }}%); green means it's clearly above the line,
+  red clearly below. <a class="link-secondary" href="{{ url_for('matches.rankings') }}#how">How it works</a>
 </p>

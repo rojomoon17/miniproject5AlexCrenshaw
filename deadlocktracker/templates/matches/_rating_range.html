@@ -1,0 +1,12 @@
+{# Range bar for a rated row. Expects `row` (with rating, low, high) and `baseline` (0-100).
+   The shaded band is the likely range, the dot is the rating and the line is your baseline. #}
+<div class="d-flex align-items-center gap-2">
+  <div class="rating-range flex-grow-1" role="img"
+       aria-label="Rating {{ row['rating'] }}%, likely between {{ row['low'] }}% and {{ row['high'] }}%">
+    <div class="rating-range-band {{ 'is-good' if row['low'] > baseline else ('is-bad' if row['high'] < baseline else '') }}"
+         style="left: {{ row['low'] }}%; width: {{ row['high'] - row['low'] }}%"></div>
+    <div class="rating-range-baseline" style="left: {{ baseline }}%"></div>
+    <div class="rating-range-dot" style="left: {{ row['rating'] }}%"></div>
+  </div>
+  <span class="small text-body-secondary text-nowrap">{{ row['low']|round|int }}–{{ row['high']|round|int }}%</span>
+</div>

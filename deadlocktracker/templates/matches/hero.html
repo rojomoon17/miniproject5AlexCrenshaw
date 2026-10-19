@@ -8,9 +8,9 @@
       {% for r in rows %}
         <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
           <span>{{ r['name'] }}</span>
-          <span class="small text-nowrap" title="Rating {{ r['rating'] }}% from a {{ r['wins'] }}-{{ r['games'] - r['wins'] }} record">
+          <span class="small text-nowrap" title="Rating {{ r['rating'] }}%, likely {{ r['low'] }}-{{ r['high'] }}%, from a {{ r['wins'] }}-{{ r['games'] - r['wins'] }} record">
             <span class="fw-semibold text-{{ style }}">{{ r['rating'] }}%</span>
-            <span class="text-body-secondary">· {{ r['wins'] }}-{{ r['games'] - r['wins'] }}</span>
+            <span class="text-body-secondary">({{ r['low']|round|int }}–{{ r['high']|round|int }}) · {{ r['wins'] }}-{{ r['games'] - r['wins'] }}</span>
           </span>
         </li>
       {% else %}
@@ -71,7 +71,7 @@
       </div></div></div>
     </div>
 
-    {% with baseline_label = 'your win rate on ' ~ hero['name'], prior = matchup_prior_games %}
+    {% with baseline_label = 'your win rate on ' ~ hero['name'] %}
       {% include 'matches/_rating_help.html' %}
     {% endwith %}
 
@@ -87,6 +87,7 @@
                 {% if loop.first and by_lane|length > 1 %}<span class="small fw-semibold">Your best lane</span>{% endif %}
               </div>
               <div class="stat-value">{{ lane['rating'] }}% <span class="fs-6 fw-normal text-body-secondary">rating</span></div>
+              <div class="my-2">{% with row = lane %}{% include 'matches/_rating_range.html' %}{% endwith %}</div>
               <div class="small text-body-secondary">
                 {{ lane['wins'] }}-{{ lane['games'] - lane['wins'] }} ({{ lane['win_rate'] }}%) · KDA {{ lane['kda'] }}
                 · {{ '{:,}'.format(lane['spm']) ~ ' souls/min' if lane['spm'] is not none else 'souls/min —' }}
@@ -99,9 +100,10 @@
 
     {# Matchups and pairings #}
     <h2 class="h4">Matchups &amp; pairings</h2>
-    <p class="small text-body-secondary">Only from your games as {{ hero['name'] }}. "Best" means you won at least half,
-      "toughest" means you lost more than half; each list is ordered by rating, so bigger samples rank higher,
-      and only includes heroes you've played with or against at least {{ min_list_games }} times.</p>
+    <p class="small text-body-secondary">Only from your games as {{ hero['name'] }}. "Best" are rated above your usual
+      {{ baseline }}% on {{ hero['name'] }} and "toughest" below it. Each list puts the ones we're surest about first
+      (best by the low end of the range shown in brackets, toughest by the high end) and only includes heroes you've
+      played with or against at least {{ min_list_games }} times.</p>
     <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3 mb-4">
       <div class="col">{{ matchup_card('Best lane matchups', best_opponents, 'No winning lane matchups yet.', 'success') }}</div>
       <div class="col">{{ matchup_card('Toughest lane matchups', toughest_opponents, 'No losing lane matchups yet.', 'danger') }}</div>

@@ -28,7 +28,7 @@
         <noscript><div class="col-auto"><button type="submit" class="btn btn-outline-light">Sort</button></div></noscript>
       </form>
 
-      {% with baseline_label = 'your overall win rate', prior = hero_prior_games %}
+      {% with baseline_label = 'your overall win rate' %}
         {% include 'matches/_rating_help.html' %}
       {% endwith %}
 
@@ -45,6 +45,7 @@
                 </div>
                 <h2 class="h4 mt-2 mb-1">{{ row['name'] }}</h2>
                 <div class="stat-value">{{ row['rating'] }}% <span class="fs-6 fw-normal text-body-secondary">rating</span></div>
+                <div class="my-2">{% include 'matches/_rating_range.html' %}</div>
                 <div class="small text-body-secondary">
                   {{ row['wins'] }}-{{ row['games'] - row['wins'] }} ({{ row['win_rate'] }}%) · KDA {{ row['kda'] }}
                   {% if row['best_lane'] %}· best in {{ row['best_lane'] }}{% endif %}
@@ -62,6 +63,7 @@
               <th>#</th>
               <th>Hero</th>
               <th class="text-end">Rating</th>
+              <th style="min-width: 200px">Likely range</th>
               <th class="text-end">Games</th>
               <th class="text-end">W - L</th>
               <th class="text-end">Win rate</th>
@@ -76,6 +78,7 @@
                 <td class="text-body-secondary">{{ loop.index }}</td>
                 <td><a href="{{ url_for('matches.hero', id=row['id']) }}">{{ row['name'] }}</a></td>
                 <td class="text-end fw-semibold {{ 'text-success' if row['rating'] >= baseline else 'text-danger' }}">{{ row['rating'] }}%</td>
+                <td>{% include 'matches/_rating_range.html' %}</td>
                 <td class="text-end">{{ row['games'] }}</td>
                 <td class="text-end">{{ row['wins'] }} - {{ row['games'] - row['wins'] }}</td>
                 <td class="text-end">{{ row['win_rate'] }}%</td>
@@ -143,22 +146,32 @@
       <div class="card mt-4" id="how">
         <div class="card-header">How the ranking works</div>
         <div class="card-body small">
-          <p>A plain win rate jumps around on small samples: win your only game on a hero and it shows 100%.
-            Two things stop that from deciding your rankings:</p>
+          <p>A plain win rate is misleading on small samples (win your only game on a hero and it reads 100%)
+            and treats a game from months ago the same as last night's. Each rating fixes both:</p>
           <ol>
-            <li class="mb-2"><strong>Only heroes with {{ min_ranked_games }}+ games are ranked.</strong> Heroes with
-              fewer games are listed under "Not enough games yet" instead.</li>
-            <li><strong>Ranked heroes are ordered by rating.</strong> The rating imagines every hero already has
-              {{ hero_prior_games }} games at your overall win rate ({{ baseline }}% across {{ total_games }} games), then
-              adds your real games on top, so a longer record counts for more:
-              <p class="font-monospace my-2">rating = (wins + {{ hero_prior_games }} × {{ baseline }}%) ÷ (games + {{ hero_prior_games }})</p>
-              For example, a 1-0 record would rate {{ examples['one_win'] }}% and a 6-1 record {{ examples['six_one'] }}%.
-            </li>
+            <li class="mb-2"><strong>Recent games count more.</strong> A game {{ half_life_days }} days old counts half as
+              much as one today, and one {{ half_life_days * 2 }} days old a quarter, so ratings follow how you play now
+              and the current patch. W-L records and game counts still show every game.</li>
+            <li class="mb-2"><strong>Every rating starts from your average.</strong> Each hero starts as if it already had
+              some games at your overall win rate ({{ baseline }}% across {{ total_games }} games), and your real games are
+              added on top. How many "starting games" to use is worked out from your own data: the more your heroes'
+              win rates differ by more than luck would explain, the fewer starting games, so real differences show
+              through. For your heroes right now that's <strong>{{ prior }} games</strong>.</li>
+            <li class="mb-2"><strong>Every rating comes with a range.</strong> The bar shows where your true win rate
+              probably is ({{ range_percent }}% likely). With your numbers, a 1-0 record rates
+              {{ examples['one_win']['rating'] }}% ({{ examples['one_win']['low']|round|int }}–{{ examples['one_win']['high']|round|int }}%),
+              6-1 rates {{ examples['six_one']['rating'] }}% ({{ examples['six_one']['low']|round|int }}–{{ examples['six_one']['high']|round|int }}%)
+              and 20-10 rates {{ examples['thirty']['rating'] }}% ({{ examples['thirty']['low']|round|int }}–{{ examples['thirty']['high']|round|int }}%):
+              more games, narrower range.</li>
+            <li><strong>Only heroes with {{ min_ranked_games }}+ games are ranked.</strong> Heroes with fewer games are
+              listed under "Not enough games yet". Without this, a hero with one or two games ("probably about
+              average") would often outrank a main that's proven a bit below average, which isn't what a ranking of
+              your best heroes should do.</li>
           </ol>
-          <p class="mb-0">Lanes and matchups on a hero page use the same rating, starting from your win rate on that
-            hero but with a heavier weight of {{ matchup_prior_games }} games, because each matchup only has a few games
-            and lucky streaks would otherwise crowd out real patterns. A hero also needs at least {{ min_list_games }}
-            games with or against you to appear in a "best" or "toughest" list.</p>
+          <p class="mb-0">Lanes and matchups on a hero page work the same way, starting from your win rate on that
+            hero. The best ones are ordered by the low end of their range and the toughest by the high end, so the
+            ones we're surest about come first, and a hero needs at least {{ min_list_games }} games with or against you
+            to be listed.</p>
         </div>
       </div>
     {% endif %}

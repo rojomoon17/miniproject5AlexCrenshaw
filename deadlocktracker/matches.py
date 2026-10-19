@@ -9,6 +9,7 @@ from flask import (
     Blueprint, abort, flash, g, redirect, render_template, request, url_for
 )
 
+from deadlocktracker import ratings
 from deadlocktracker.auth import login_required
 from deadlocktracker.db import get_db
 
@@ -65,37 +66,32 @@ MATCH_SELECT = f"""
 """
 
 
-# Experience-weighted "rating": a win rate that starts from a baseline and only
-# moves away from it as you play more games. Each record is treated as if it
-# already had `prior` games at the baseline win rate, so winning your only game
-# on a hero doesn't make it your best hero.
-#   rating = (wins + prior * baseline) / (games + prior)
-# The baseline is your overall win rate when comparing heroes, and your win
-# rate on a hero when comparing that hero's lanes and matchups.
-HERO_PRIOR_GAMES = 5
-# Lanes and matchups get a heavier prior: each one only has a few games, and a
-# stress test (140 matches plus 300 simulated heroes) showed that with a prior of
-# 5, lucky 2-0 or 3-0 records crowded real matchup patterns out of the top 3.
-MATCHUP_PRIOR_GAMES = 10
+# Ratings (see ratings.py): recency-weighted win rates with a fitted prior and an
+# 80% range. Queries add these two columns so the ratings can weight each game
+# by its age; the plain `games`/`wins` counts are still used for W-L and minimums.
+WEIGHTED = """
+    SUM(age_weight(julianday('now') - julianday(m.played))) AS wgames,
+    SUM(CASE WHEN m.result = 'Win' THEN age_weight(julianday('now') - julianday(m.played))
+             ELSE 0 END) AS wwins
+"""
+# Prior strength used when there are too few records to fit one: 10 games, the
+# setting that worked best for lanes and matchups in the earlier stress test.
+DEFAULT_PRIOR_GAMES = 10
 # A hero needs at least this many games together to be listed as a best or
 # toughest lane matchup, partner, teammate or enemy on a hero page.
 MIN_LIST_GAMES = 3
 # Fewer games than this is a small sample; at least the second is a solid one.
 CONFIDENCE_LEVELS = ((3, "Low", "secondary"), (10, "Medium", "info"))
 # A hero needs this many games (a "High" sample) to be ranked on the Rankings
-# page. The rating alone isn't enough: when your main heroes sit near your
-# average, a single win on another hero nudges it just above average and it
-# outranked mains with 40+ games.
+# page. A simulation of 1,000 players showed that without it, heroes with only
+# 1-3 games reached the top 3 in 82-96% of cases (an "about average" guess
+# beats a main that's proven below average), and that with it every ordering
+# method picks the best main equally often.
 MIN_RANKED_GAMES = 10
 
 
 def win_rate(wins, games):
     return 100.0 * wins / games if games else 0.0
-
-
-def rating(wins, games, baseline, prior=HERO_PRIOR_GAMES):
-    """Experience-weighted win rate (0-100), pulled towards `baseline` (0-100)."""
-    return round(100.0 * (wins + prior * baseline / 100.0) / (games + prior), 1)
 
 
 def confidence(games):
@@ -106,15 +102,22 @@ def confidence(games):
     return "High", "success"
 
 
-def rate_rows(rows, baseline, prior=HERO_PRIOR_GAMES):
-    """Rows with games and wins -> dicts with `rating` and `confidence` added."""
-    rated = []
-    for row in rows:
-        item = dict(row)
-        item["rating"] = rating(item["wins"], item["games"], baseline, prior)
+def weighted_rate(rows):
+    """Recency-weighted win rate (0-100) across rows with `wwins`/`wgames`."""
+    games = sum(r["wgames"] or 0 for r in rows)
+    return 100.0 * sum(r["wwins"] or 0 for r in rows) / games if games else 0.0
+
+
+def rate_rows(rows, baseline):
+    """Rate a group of rows against `baseline` (0-100).
+
+    Returns (rows as dicts with `rating`, `low`, `high` and `confidence` added,
+    the prior strength in games that was fitted for this group).
+    """
+    rated, prior = ratings.rate_group(rows, baseline, DEFAULT_PRIOR_GAMES)
+    for item in rated:
         item["confidence"] = confidence(item["games"])
-        rated.append(item)
-    return rated
+    return rated, prior
 
 
 def format_duration(seconds):
@@ -144,8 +147,9 @@ def inject_heroes():
         return {}
     heroes = get_db().execute("SELECT id, name FROM hero ORDER BY name").fetchall()
     return {"all_heroes": heroes, "teams": TEAMS, "lane_styles": LANE_STYLES,
-            "blank_slots": blank_slots, "hero_prior_games": HERO_PRIOR_GAMES,
-            "matchup_prior_games": MATCHUP_PRIOR_GAMES, "min_list_games": MIN_LIST_GAMES}
+            "blank_slots": blank_slots, "half_life_days": ratings.HALF_LIFE_DAYS,
+            "range_percent": int(ratings.RANGE * 100), "min_list_games": MIN_LIST_GAMES,
+            "min_ranked_games": MIN_RANKED_GAMES}
 
 
 def get_match(id, check_owner=True):
@@ -473,13 +477,13 @@ def stats():
         "       ROUND(100.0 * SUM(m.result = 'Win') / COUNT(*), 1) AS win_rate,"
         "       ROUND((SUM(m.kills) + SUM(m.assists)) * 1.0 / MAX(SUM(m.deaths), 1), 2) AS kda,"
         "       ROUND(AVG(m.souls)) AS avg_souls,"
-        f"      {SPM_AGG} AS spm"
+        f"      {SPM_AGG} AS spm, {WEIGHTED}"
         " FROM match_log m JOIN hero h ON h.id = m.hero_id"
         " WHERE m.user_id = ?"
         " GROUP BY h.id ORDER BY games DESC, win_rate DESC",
         (g.user["id"],),
     ).fetchall()
-    per_hero = rate_rows(per_hero, win_rate(overall["wins"], overall["games"]))
+    per_hero, _ = rate_rows(per_hero, weighted_rate(per_hero))
 
     return render_template("matches/stats.html", overall=overall, per_hero=per_hero)
 
@@ -488,6 +492,7 @@ def stats():
 # option because heroes farm at very different rates.
 RANKING_SORTS = {
     "rating": ("Rating", lambda r: (-r["rating"], -r["games"], r["name"])),
+    "low": ("Safe estimate (low end of range)", lambda r: (-r["low"], -r["games"], r["name"])),
     "win_rate": ("Win rate", lambda r: (-r["win_rate"], -r["games"], r["name"])),
     "games": ("Games played", lambda r: (-r["games"], -r["rating"], r["name"])),
     "kda": ("KDA", lambda r: (-r["kda"], -r["games"], r["name"])),
@@ -504,7 +509,7 @@ def rankings():
         "       SUM(m.result = 'Win') AS wins,"
         "       ROUND(100.0 * SUM(m.result = 'Win') / COUNT(*), 1) AS win_rate,"
         "       ROUND((SUM(m.kills) + SUM(m.assists)) * 1.0 / MAX(SUM(m.deaths), 1), 2) AS kda,"
-        f"      {SPM_AGG} AS spm"
+        f"      {SPM_AGG} AS spm, {WEIGHTED}"
         " FROM match_log m JOIN hero h ON h.id = m.hero_id"
         " WHERE m.user_id = ? GROUP BY h.id",
         (g.user["id"],),
@@ -514,19 +519,21 @@ def rankings():
                                sorts=RANKING_SORTS, sort="rating")
 
     total_games = sum(r["games"] for r in rows)
-    baseline = win_rate(sum(r["wins"] for r in rows), total_games)
-    heroes = rate_rows(rows, baseline)
+    baseline = weighted_rate(rows)
+    heroes, prior = rate_rows(rows, baseline)
 
-    # Each hero's best lane, rated against your win rate on that hero.
+    # Each hero's best lane: the lane with the highest low end of its range,
+    # rated against your (recency-weighted) win rate on that hero.
     lanes = db.execute(
-        "SELECT m.hero_id, m.lane, COUNT(*) AS games, SUM(m.result = 'Win') AS wins"
+        f"SELECT m.hero_id, m.lane, m.lane AS name, COUNT(*) AS games,"
+        f"       SUM(m.result = 'Win') AS wins, {WEIGHTED}"
         " FROM match_log m WHERE m.user_id = ? GROUP BY m.hero_id, m.lane",
         (g.user["id"],),
     ).fetchall()
     for hero_row in heroes:
-        hero_lanes = [dict(l, name=l["lane"]) for l in lanes if l["hero_id"] == hero_row["id"]]
-        rated_lanes = by_rating(rate_rows(hero_lanes, hero_row["win_rate"], MATCHUP_PRIOR_GAMES))
-        hero_row["best_lane"] = rated_lanes[0]["lane"] if len(rated_lanes) > 1 else None
+        hero_lanes = [l for l in lanes if l["hero_id"] == hero_row["id"]]
+        rated_lanes, _ = rate_rows(hero_lanes, weighted_rate([hero_row]))
+        hero_row["best_lane"] = by_low(rated_lanes)[0]["lane"] if len(rated_lanes) > 1 else None
 
     sort = request.args.get("sort", "rating")
     if sort not in RANKING_SORTS:
@@ -539,17 +546,19 @@ def rankings():
     for h in provisional:
         h["games_needed"] = MIN_RANKED_GAMES - h["games"]
 
-    examples = {"one_win": rating(1, 1, baseline), "six_one": rating(6, 7, baseline)}
+    base = baseline / 100
+    examples = {"one_win": ratings.estimate(1, 1, base, prior),
+                "six_one": ratings.estimate(6, 7, base, prior),
+                "thirty": ratings.estimate(20, 30, base, prior)}
     return render_template("matches/rankings.html", heroes=ranked, provisional=provisional,
                            sorts=RANKING_SORTS, sort=sort, baseline=round(baseline, 1),
-                           total_games=total_games, examples=examples,
-                           min_ranked_games=MIN_RANKED_GAMES)
+                           total_games=total_games, examples=examples, prior=round(prior, 1))
 
 
 def played_heroes():
     """Heroes the current user has logged matches on, most played first."""
     return get_db().execute(
-        "SELECT h.id, h.name, COUNT(*) AS games, SUM(m.result = 'Win') AS wins"
+        f"SELECT h.id, h.name, COUNT(*) AS games, SUM(m.result = 'Win') AS wins, {WEIGHTED}"
         " FROM match_log m JOIN hero h ON h.id = m.hero_id"
         " WHERE m.user_id = ? GROUP BY h.id ORDER BY games DESC, h.name",
         (g.user["id"],),
@@ -566,7 +575,7 @@ def matchup_stats(hero_id, side, lane_only):
         "SELECT h.id, h.name, COUNT(*) AS games,"
         "       SUM(m.result = 'Win') AS wins,"
         "       ROUND(100.0 * SUM(m.result = 'Win') / COUNT(*), 1) AS win_rate,"
-        f"      {SPM_AGG} AS spm"
+        f"      {SPM_AGG} AS spm, {WEIGHTED}"
         " FROM match_player p"
         " JOIN match_log m ON m.id = p.match_id"
         " JOIN hero h ON h.id = p.hero_id"
@@ -576,20 +585,31 @@ def matchup_stats(hero_id, side, lane_only):
     ).fetchall()
 
 
-def best_and_toughest(rows, limit=3):
-    """Split rated matchup rows into your best (won at least half) and toughest
-    (lost more than half), each ranked by rating so more games count for more.
-    Heroes you've played with or against fewer than MIN_LIST_GAMES times are left out."""
+def best_and_toughest(rows, baseline, limit=3):
+    """Split rated matchup rows into your best (rated above your usual win rate on
+    the hero) and toughest (rated below it).
+
+    Best are ordered by the low end of their range and toughest by the high end:
+    the ones we're surest about come first. Heroes you've played with or against
+    fewer than MIN_LIST_GAMES times are left out.
+    """
     rows = [r for r in rows if r["games"] >= MIN_LIST_GAMES]
-    best = sorted((r for r in rows if r["win_rate"] >= 50),
-                  key=lambda r: (-r["rating"], -r["games"], r["name"]))
-    toughest = sorted((r for r in rows if r["win_rate"] < 50),
-                      key=lambda r: (r["rating"], -r["games"], r["name"]))
+    # Same 1-99% limit the ratings use, so on a hero you've won every game on, a
+    # 3-0 matchup still counts as "best" rather than falling short of 100%.
+    baseline = 100 * ratings.clamp_baseline(baseline / 100)
+    best = sorted((r for r in rows if r["rating"] >= baseline),
+                  key=lambda r: (-r["low"], -r["games"], r["name"]))
+    toughest = sorted((r for r in rows if r["rating"] < baseline),
+                      key=lambda r: (r["high"], -r["games"], r["name"]))
     return best[:limit], toughest[:limit]
 
 
 def by_rating(rows):
     return sorted(rows, key=lambda r: (-r["rating"], -r["games"], r["name"]))
+
+
+def by_low(rows):
+    return sorted(rows, key=lambda r: (-r["low"], -r["games"], r["name"]))
 
 
 @bp.route("/matchups")
@@ -604,11 +624,10 @@ def matchups():
     if hero_id is not None and selected["id"] != hero_id:
         flash(f"You haven't logged any matches on that hero, so here's {selected['name']}.", "info")
 
-    # Matchups are rated against your usual win rate on this hero.
-    baseline = win_rate(selected["wins"], selected["games"])
+    # Matchups are rated against your usual (recency-weighted) win rate on this hero.
+    baseline = weighted_rate([selected])
     tabs = [
-        (key, label, verb, by_rating(rate_rows(matchup_stats(selected["id"], side, lane_only),
-                                               baseline, MATCHUP_PRIOR_GAMES)))
+        (key, label, verb, by_rating(rate_rows(matchup_stats(selected["id"], side, lane_only), baseline)[0]))
         for key, label, verb, side, lane_only in (
             ("lane-opponents", "Lane opponents", "vs", "enemy", True),
             ("lane-partners", "Lane partners", "with", "ally", True),
@@ -647,7 +666,7 @@ def hero(id):
         "       ROUND((COALESCE(SUM(m.kills), 0) + COALESCE(SUM(m.assists), 0)) * 1.0"
         "             / MAX(COALESCE(SUM(m.deaths), 0), 1), 2) AS kda,"
         "       ROUND(AVG(m.souls)) AS avg_souls,"
-        f"      {SPM_AGG} AS spm"
+        f"      {SPM_AGG} AS spm, {WEIGHTED}"
         " FROM match_log m WHERE m.user_id = ? AND m.hero_id = ?",
         params,
     ).fetchone()
@@ -655,28 +674,28 @@ def hero(id):
     if summary["games"] == 0:
         return render_template("matches/hero.html", hero=hero, summary=summary)
 
-    # Lanes and matchups are rated against your usual win rate on this hero.
-    baseline = win_rate(summary["wins"], summary["games"])
+    # Lanes and matchups are rated against your usual (recency-weighted) win rate on this hero.
+    baseline = weighted_rate([summary])
     by_lane = db.execute(
-        "SELECT m.lane, COUNT(*) AS games,"
+        "SELECT m.lane, m.lane AS name, COUNT(*) AS games,"
         "       SUM(m.result = 'Win') AS wins,"
         "       ROUND(100.0 * SUM(m.result = 'Win') / COUNT(*), 1) AS win_rate,"
         "       ROUND((SUM(m.kills) + SUM(m.assists)) * 1.0 / MAX(SUM(m.deaths), 1), 2) AS kda,"
-        f"      {SPM_AGG} AS spm"
+        f"      {SPM_AGG} AS spm, {WEIGHTED}"
         " FROM match_log m WHERE m.user_id = ? AND m.hero_id = ?"
         " GROUP BY m.lane",
         params,
     ).fetchall()
-    by_lane = sorted(rate_rows(by_lane, baseline, MATCHUP_PRIOR_GAMES),
-                     key=lambda r: (-r["rating"], -r["games"]))
+    # Best lane first: the one whose range has the highest low end.
+    by_lane = by_low(rate_rows(by_lane, baseline)[0])
 
     def rated(side, lane_only):
-        return rate_rows(matchup_stats(id, side, lane_only), baseline, MATCHUP_PRIOR_GAMES)
+        return rate_rows(matchup_stats(id, side, lane_only), baseline)[0]
 
-    best_opponents, toughest_opponents = best_and_toughest(rated("enemy", True))
-    best_partners, toughest_partners = best_and_toughest(rated("ally", True))
-    best_teammates, _ = best_and_toughest(rated("ally", False))
-    _, toughest_enemies = best_and_toughest(rated("enemy", False))
+    best_opponents, toughest_opponents = best_and_toughest(rated("enemy", True), baseline)
+    best_partners, toughest_partners = best_and_toughest(rated("ally", True), baseline)
+    best_teammates, _ = best_and_toughest(rated("ally", False), baseline)
+    _, toughest_enemies = best_and_toughest(rated("enemy", False), baseline)
 
     note = db.execute(
         "SELECT body, updated FROM hero_note WHERE user_id = ? AND hero_id = ?", params

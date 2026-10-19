@@ -61,7 +61,9 @@
           {% for row in per_hero %}
             <tr>
               <td><a href="{{ url_for('matches.hero', id=row['id']) }}">{{ row['name'] }}</a></td>
-              <td class="text-end fw-semibold">{{ row['rating'] }}%</td>
+              <td class="text-end fw-semibold" title="Likely between {{ row['low'] }}% and {{ row['high'] }}%">
+                {{ row['rating'] }}% <span class="small fw-normal text-body-secondary">({{ row['low']|round|int }}–{{ row['high']|round|int }})</span>
+              </td>
               <td class="text-end">{{ row['games'] }}</td>
               <td class="text-end">{{ row['wins'] }} - {{ row['games'] - row['wins'] }}</td>
               <td>
