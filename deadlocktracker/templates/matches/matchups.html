@@ -33,7 +33,9 @@
       </div>
     </form>
 
-    {% with baseline_label = 'your rating on ' ~ selected['name'] %}
+    {% with baseline_label = 'your rating on ' ~ selected['name'],
+            baseline_note = 'from your ' ~ selected['wins'] ~ '-' ~ (selected['games'] - selected['wins'])
+                            ~ ' record on ' ~ selected['name'] ~ ', weighted towards recent games and your average' %}
       {% include 'matches/_rating_help.html' %}
     {% endwith %}
 

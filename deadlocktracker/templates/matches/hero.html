@@ -71,7 +71,9 @@
       </div></div></div>
     </div>
 
-    {% with baseline_label = 'your rating on ' ~ hero['name'] %}
+    {% with baseline_label = 'your rating on ' ~ hero['name'],
+            baseline_note = 'from your ' ~ summary['wins'] ~ '-' ~ (summary['games'] - summary['wins'])
+                            ~ ' record on ' ~ hero['name'] ~ ', weighted towards recent games and your average' %}
       {% include 'matches/_rating_help.html' %}
     {% endwith %}
 

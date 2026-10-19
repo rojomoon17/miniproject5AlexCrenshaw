@@ -28,7 +28,9 @@
         <noscript><div class="col-auto"><button type="submit" class="btn btn-outline-light">Sort</button></div></noscript>
       </form>
 
-      {% with baseline_label = 'your average' %}
+      {% with baseline_label = 'your average',
+              baseline_note = 'worked out from your ' ~ average_steps['wins'] ~ '-' ~ average_steps['losses']
+                              ~ ' record, weighted towards recent games' %}
         {% include 'matches/_rating_help.html' %}
       {% endwith %}
 
@@ -157,7 +159,16 @@
             <li class="mb-2"><strong>Each rating starts from the level above it.</strong> Your average starts at 50%, which
               is what matchmaking aims every player at, and moves to your real average as your games add up
               ({{ baseline_prior_games }} games of pull towards 50%). Each hero then starts from your average, and each lane or
-              matchup from your rating on that hero. Your games are added on top.</li>
+              matchup from your rating on that hero. Your games are added on top.
+              <div class="mt-2 p-2 rounded bg-body-secondary">
+                <strong>Your average, step by step:</strong>
+                your record is {{ average_steps['wins'] }}-{{ average_steps['losses'] }} ({{ average_steps['plain'] }}%);
+                weighting recent games more gives {{ average_steps['weighted'] }}% across {{ average_steps['effective_games'] }}
+                "effective" games; the pull towards 50% then makes it <strong>{{ baseline }}%</strong>.
+                {% if (average_steps['weighted'] - baseline)|abs >= 0.5 %}The fewer games you have, the bigger that last
+                step.{% else %}With this many games the pull changes almost nothing.{% endif %}
+              </div>
+            </li>
             <li class="mb-2"><strong>The data decides how strong that starting point is.</strong> If your heroes' win rates
               differ by more than luck would explain, the differences are real and the starting point counts for
               little; if the spread looks like luck, it counts for more. This is worked out from your own games each

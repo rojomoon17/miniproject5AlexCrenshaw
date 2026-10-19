@@ -539,6 +539,15 @@ def rankings():
     total_games = sum(r["games"] for r in rows)
     baseline = player_baseline(rows)
     heroes, prior = rate_rows(rows, baseline)
+    # How the average was worked out, shown on the page so it's clear it comes from your games.
+    total_wins = sum(r["wins"] for r in rows)
+    effective_games = sum(r["wgames"] for r in rows)
+    average_steps = {
+        "wins": total_wins, "losses": total_games - total_wins,
+        "plain": round(win_rate(total_wins, total_games), 1),
+        "weighted": round(100 * sum(r["wwins"] for r in rows) / effective_games, 1),
+        "effective_games": round(effective_games, 1),
+    }
 
     # Each hero's best lane: the lane with the highest low end of its range,
     # rated against your rating on that hero.
@@ -570,7 +579,8 @@ def rankings():
                 "thirty": ratings.estimate(20, 30, base, prior)}
     return render_template("matches/rankings.html", heroes=ranked, provisional=provisional,
                            sorts=RANKING_SORTS, sort=sort, baseline=round(baseline, 1),
-                           total_games=total_games, examples=examples, prior=round(prior, 1))
+                           total_games=total_games, examples=examples, prior=round(prior, 1),
+                           average_steps=average_steps)
 
 
 def played_heroes():
