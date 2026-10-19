@@ -35,6 +35,26 @@ from Valve or any third-party stats service.
   matches on that hero; and your match history on them
 - **Heroes** page: the full roster with your record on each hero; heroes you've played link to
   their hero page
+- **Rankings** page: your heroes ranked from best to worst by an experience-weighted **rating**
+  (see below), with a podium for your top three, each hero's best lane and a sample-size badge.
+  A GET form lets you rank by rating, raw win rate, games played or KDA
+
+## How the rating works
+
+A plain win rate is misleading on small samples: win your only game on a hero and it reads 100%.
+The app's **rating** fixes that by treating every record as if it already had 5 games at a
+baseline win rate, then adding your real games:
+
+```
+rating = (wins + 5 × baseline) / (games + 5)
+```
+
+With a 55% baseline, a 1-0 hero rates (1 + 2.75) / 6 = **62.5%**, while a 6-1 hero rates
+(6 + 2.75) / 12 = **72.9%**, so the hero with more proven wins ranks higher. The baseline is your
+overall win rate when ranking heroes, and your win rate on a hero when ranking that hero's lanes
+and matchups. This is the same idea as a Bayesian average, the method review sites use so a product
+with one 5-star review doesn't outrank one with hundreds. Records are also tagged **Low** (under 3
+games), **Medium** (3–9) or **High** (10+) so you can see how much data is behind them.
 - Dark Bootstrap 5 theme, responsive down to phone width
 
 ## Error handling
@@ -64,6 +84,7 @@ from Valve or any third-party stats service.
 | Match detail | `/match/<id>` | Full stats and notes, with edit and delete |
 | Edit match | `/match/<id>/edit` | GET + POST form, owner only |
 | Stats | `/stats` | Aggregate stats using `JOIN` and `GROUP BY` |
+| Rankings | `/rankings?sort=<rating\|win_rate\|games\|kda>` | Your heroes ranked by rating, with a GET form to change the order |
 | Matchups | `/matchups?hero=<id>` | GET form to pick your hero, then tabs for lane opponents, lane partners, enemy team and your team |
 | Heroes | `/heroes` | Hero grid |
 | Hero page | `/heroes/<id>` | Lanes, matchups, pairings, notes and matches for one hero, plus a POST form (`/heroes/<id>/notes`) to save your notes |
