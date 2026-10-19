@@ -11,7 +11,8 @@
   {% if not heroes and not provisional %}
     <div class="text-center py-5 border rounded-3">
       <p class="fs-5 mb-1">Nothing to rank yet.</p>
-      <p class="text-body-secondary">Log some matches and your heroes will be ranked here.</p>
+      <p class="text-body-secondary">Log your matches and your heroes will show up here. A hero is ranked once
+        you've played {{ min_ranked_games }} games on it; how that works is explained below.</p>
       <a class="btn btn-warning" href="{{ url_for('matches.create') }}">Log match</a>
     </div>
   {% else %}
@@ -143,8 +144,8 @@
         </table>
       </div>
     {% endif %}
+  {% endif %}
 
-    {% if heroes %}
       <div class="card mt-4" id="how">
         <div class="card-header">How the ranking works</div>
         <div class="card-body small">
@@ -162,20 +163,27 @@
               matchup from your rating on that hero. Your games are added on top.
               <div class="mt-2 p-2 rounded bg-body-secondary">
                 <strong>Your average, step by step:</strong>
-                your record is {{ average_steps['wins'] }}-{{ average_steps['losses'] }} ({{ average_steps['plain'] }}%);
-                weighting recent games more gives {{ average_steps['weighted'] }}% across {{ average_steps['effective_games'] }}
-                "effective" games; the pull towards 50% then makes it <strong>{{ baseline }}%</strong>.
-                {% if (average_steps['weighted'] - baseline)|abs >= 0.5 %}The fewer games you have, the bigger that last
-                step.{% else %}With this many games the pull changes almost nothing.{% endif %}
+                {% if average_steps %}
+                  your record is {{ average_steps['wins'] }}-{{ average_steps['losses'] }} ({{ average_steps['plain'] }}%);
+                  weighting recent games more gives {{ average_steps['weighted'] }}% across {{ average_steps['effective_games'] }}
+                  "effective" games; the pull towards 50% then makes it <strong>{{ baseline }}%</strong>.
+                  {% if (average_steps['weighted'] - baseline)|abs >= 0.5 %}The fewer games you have, the bigger that last
+                  step.{% else %}With this many games the pull changes almost nothing.{% endif %}
+                {% else %}
+                  with no games logged yet it's <strong>50%</strong>. After your first win it becomes
+                  (1 + {{ baseline_prior_games }} × 50%) ÷ (1 + {{ baseline_prior_games }}) ≈ {{ (100 * (1 + baseline_prior_games * 0.5) / (1 + baseline_prior_games))|round(1) }}%, not 100%, and it
+                  keeps moving towards your real win rate as you play.
+                {% endif %}
               </div>
             </li>
             <li class="mb-2"><strong>The data decides how strong that starting point is.</strong> If your heroes' win rates
               differ by more than luck would explain, the differences are real and the starting point counts for
               little; if the spread looks like luck, it counts for more. This is worked out from your own games each
-              time (between {{ k_min }} and {{ k_max }} "starting games"); for your heroes right now it's
-              <strong>{{ prior }}</strong>.</li>
+              time (between {{ k_min }} and {{ k_max }} "starting games").
+              {% if average_steps %}For your heroes right now it's <strong>{{ prior }}</strong>.{% else %}Until there
+              are enough heroes to measure the spread it uses <strong>{{ prior }}</strong>.{% endif %}</li>
             <li class="mb-2"><strong>Every rating comes with a range.</strong> The bar shows where your true win rate
-              probably is ({{ range_percent }}% likely). With your numbers, a 1-0 record rates
+              probably is ({{ range_percent }}% likely). {{ 'With your numbers' if average_steps else 'Starting from 50%' }}, a 1-0 record rates
               {{ examples['one_win']['rating'] }}% ({{ examples['one_win']['low']|round|int }}–{{ examples['one_win']['high']|round|int }}%),
               6-1 rates {{ examples['six_one']['rating'] }}% ({{ examples['six_one']['low']|round|int }}–{{ examples['six_one']['high']|round|int }}%)
               and 20-10 rates {{ examples['thirty']['rating'] }}% ({{ examples['thirty']['low']|round|int }}–{{ examples['thirty']['high']|round|int }}%):
@@ -193,6 +201,4 @@
             inside the {{ range_percent }}% range 79–91% of the time.</p>
         </div>
       </div>
-    {% endif %}
-  {% endif %}
 {% endblock %}

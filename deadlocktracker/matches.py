@@ -159,15 +159,17 @@ def blank_slots():
 
 @bp.app_context_processor
 def inject_heroes():
-    """Make the hero list available to every template (navbar quick-log modal)."""
+    """Make the rating settings available to every template, and the hero list
+    (for the navbar quick-log modal) once logged in."""
+    settings = {"half_life_days": ratings.HALF_LIFE_DAYS, "range_percent": int(ratings.RANGE * 100),
+                "min_list_games": MIN_LIST_GAMES, "min_ranked_games": MIN_RANKED_GAMES,
+                "baseline_prior_games": ratings.BASELINE_PRIOR_GAMES,
+                "k_min": int(ratings.K_MIN), "k_max": int(ratings.K_MAX)}
     if g.get("user") is None:
-        return {}
+        return settings
     heroes = get_db().execute("SELECT id, name FROM hero ORDER BY name").fetchall()
-    return {"all_heroes": heroes, "teams": TEAMS, "lane_styles": LANE_STYLES,
-            "blank_slots": blank_slots, "half_life_days": ratings.HALF_LIFE_DAYS,
-            "range_percent": int(ratings.RANGE * 100), "min_list_games": MIN_LIST_GAMES,
-            "min_ranked_games": MIN_RANKED_GAMES, "baseline_prior_games": ratings.BASELINE_PRIOR_GAMES,
-            "k_min": int(ratings.K_MIN), "k_max": int(ratings.K_MAX)}
+    return {**settings, "all_heroes": heroes, "teams": TEAMS, "lane_styles": LANE_STYLES,
+            "blank_slots": blank_slots}
 
 
 def get_match(id, check_owner=True):
@@ -533,8 +535,14 @@ def rankings():
         (g.user["id"],),
     ).fetchall()
     if not rows:
+        # No games yet: still explain the system, using the starting values.
+        examples = {"one_win": ratings.estimate(1, 1, 0.5, DEFAULT_PRIOR_GAMES),
+                    "six_one": ratings.estimate(6, 7, 0.5, DEFAULT_PRIOR_GAMES),
+                    "thirty": ratings.estimate(20, 30, 0.5, DEFAULT_PRIOR_GAMES)}
         return render_template("matches/rankings.html", heroes=[], provisional=[],
-                               sorts=RANKING_SORTS, sort="rating")
+                               sorts=RANKING_SORTS, sort="rating", baseline=50.0,
+                               total_games=0, examples=examples, prior=DEFAULT_PRIOR_GAMES,
+                               average_steps=None)
 
     total_games = sum(r["games"] for r in rows)
     baseline = player_baseline(rows)
