@@ -2,6 +2,7 @@
 # Alex Crenshaw
 # Mini Project 5
 
+import math
 import re
 import sqlite3
 
@@ -51,13 +52,19 @@ SPM_AGG = """
          AS INTEGER)
 """
 
+# How much one match counts towards ratings right now: 1 for the player's most
+# recent game, halving every ratings.HALF_LIFE_DAYS before that.
+_AGE = ("age_weight(julianday((SELECT MAX(l.played) FROM match_log l WHERE l.user_id = m.user_id))"
+        " - julianday(m.played))")
+
 # Shared SELECT for match rows, with the hero name, a KDA ratio
 # ((kills + assists) / deaths, treating 0 deaths as 1), souls per minute,
-# and the names of your lane opponents.
+# the match's current rating weight, and the names of your lane opponents.
 MATCH_SELECT = f"""
     SELECT m.*, h.name AS hero_name,
            ROUND((m.kills + m.assists) * 1.0 / MAX(m.deaths, 1), 2) AS kda,
            {SPM_EXPR} AS spm,
+           {_AGE} AS weight,
            (SELECT GROUP_CONCAT(oh.name, ', ')
               FROM match_player p JOIN hero oh ON oh.id = p.hero_id
              WHERE p.match_id = m.id AND p.side = 'enemy' AND p.in_lane = 1) AS lane_opponents
@@ -70,8 +77,6 @@ MATCH_SELECT = f"""
 # 80% range. Queries add these two columns so the ratings can weight each game
 # by its age, measured from the player's most recent game; the plain
 # `games`/`wins` counts are still used for W-L records and minimums.
-_AGE = ("age_weight(julianday((SELECT MAX(l.played) FROM match_log l WHERE l.user_id = m.user_id))"
-        " - julianday(m.played))")
 WEIGHTED = f"""
     SUM({_AGE}) AS wgames,
     SUM(CASE WHEN m.result = 'Win' THEN {_AGE} ELSE 0 END) AS wwins
@@ -89,6 +94,15 @@ CONFIDENCE_LEVELS = ((3, "Low", "secondary"), (10, "Medium", "info"))
 # two games looks "about average", and that alone would otherwise outrank any
 # hero that's proven slightly below average, whatever kind of player you are.
 MIN_RANKED_GAMES = 10
+# ...and at least this many "effective" games once older games are weighted
+# down. Ten games that are all months old count for little, so the rating stays
+# close to your average and says almost nothing about how you play the hero now.
+# At the strongest starting point (ratings.K_MAX = 15 games) this means your own
+# games are at least a quarter of the rating, while still letting someone who
+# plays a hero about twice a month have it ranked.
+MIN_RANKED_EFFECTIVE = 5
+# Example ages (days before your latest game) for the weight table on Stats.
+WEIGHT_EXAMPLE_DAYS = (0, 30, 60, 120, 180, 365)
 
 
 def win_rate(wins, games):
@@ -129,12 +143,31 @@ def rate_rows(rows, baseline):
     """Rate a group of rows against `baseline` (0-100).
 
     Returns (rows as dicts with `rating`, `low`, `high` and `confidence` added,
-    the prior strength in games that was fitted for this group).
+    the prior strength in games that was fitted for this group). Each row also
+    gets the pieces of its rating so pages can show the working:
+    rating = (prior × start + eff_wins) ÷ (prior + eff_games).
     """
     rated, prior = ratings.rate_group(rows, baseline, DEFAULT_PRIOR_GAMES)
+    start = round(100 * ratings.clamp_baseline(baseline / 100), 1)
     for item in rated:
         item["confidence"] = confidence(item["games"])
+        eff_games = item["wgames"] or 0
+        item.update(start=start, prior=round(prior, 1), eff_wins=round(item["wwins"] or 0, 1),
+                    eff_games=round(eff_games, 1),
+                    own_share=round(100 * eff_games / (eff_games + prior)))
     return rated, prior
+
+
+def average_breakdown(rows):
+    """How your average (the starting point for every hero) is worked out."""
+    wins = sum(r["wins"] for r in rows)
+    games = sum(r["games"] for r in rows)
+    eff_wins = sum(r["wwins"] or 0 for r in rows)
+    eff_games = sum(r["wgames"] or 0 for r in rows)
+    return {"wins": wins, "losses": games - wins, "plain": round(win_rate(wins, games), 1),
+            "eff_wins": round(eff_wins, 1), "eff_games": round(eff_games, 1),
+            "weighted": round(win_rate(eff_wins, eff_games), 1),
+            "result": round(player_baseline(rows), 1)}
 
 
 def format_duration(seconds):
@@ -163,6 +196,7 @@ def inject_heroes():
     (for the navbar quick-log modal) once logged in."""
     settings = {"half_life_days": ratings.HALF_LIFE_DAYS, "range_percent": int(ratings.RANGE * 100),
                 "min_list_games": MIN_LIST_GAMES, "min_ranked_games": MIN_RANKED_GAMES,
+                "min_ranked_effective": MIN_RANKED_EFFECTIVE,
                 "baseline_prior_games": ratings.BASELINE_PRIOR_GAMES,
                 "k_min": int(ratings.K_MIN), "k_max": int(ratings.K_MAX)}
     if g.get("user") is None:
@@ -503,9 +537,16 @@ def stats():
         " GROUP BY h.id ORDER BY games DESC, win_rate DESC",
         (g.user["id"],),
     ).fetchall()
-    per_hero, _ = rate_rows(per_hero, player_baseline(per_hero)) if per_hero else ([], None)
+    if not per_hero:
+        return render_template("matches/stats.html", overall=overall, per_hero=[])
 
-    return render_template("matches/stats.html", overall=overall, per_hero=per_hero)
+    # Everything that goes into each rating, so the page can show the working.
+    average = average_breakdown(per_hero)
+    per_hero, prior = rate_rows(per_hero, player_baseline(per_hero))
+    weights = [(days, ratings.age_weight(days)) for days in WEIGHT_EXAMPLE_DAYS]
+    return render_template("matches/stats.html", overall=overall, per_hero=per_hero,
+                           average=average, prior=round(prior, 1), weights=weights,
+                           baseline=average["result"])
 
 
 # Ways to order the Rankings page: key -> (label, sort key). Souls/min isn't an
@@ -548,14 +589,7 @@ def rankings():
     baseline = player_baseline(rows)
     heroes, prior = rate_rows(rows, baseline)
     # How the average was worked out, shown on the page so it's clear it comes from your games.
-    total_wins = sum(r["wins"] for r in rows)
-    effective_games = sum(r["wgames"] for r in rows)
-    average_steps = {
-        "wins": total_wins, "losses": total_games - total_wins,
-        "plain": round(win_rate(total_wins, total_games), 1),
-        "weighted": round(100 * sum(r["wwins"] for r in rows) / effective_games, 1),
-        "effective_games": round(effective_games, 1),
-    }
+    average_steps = average_breakdown(rows)
 
     # Each hero's best lane: the lane with the highest low end of its range,
     # rated against your rating on that hero.
@@ -573,13 +607,19 @@ def rankings():
     sort = request.args.get("sort", "rating")
     if sort not in RANKING_SORTS:
         sort = "rating"
-    # Only heroes with enough games are ranked; the rest are listed separately,
-    # most played first, with how many more games they need.
-    ranked = sorted((h for h in heroes if h["games"] >= MIN_RANKED_GAMES), key=RANKING_SORTS[sort][1])
-    provisional = sorted((h for h in heroes if h["games"] < MIN_RANKED_GAMES),
+    # Only heroes with enough games, and enough recent ones, are ranked; the rest
+    # are listed separately, most played first, with how many more games they
+    # need. A new game counts fully, so a hero short on recent games needs about
+    # as many new games as it is short of effective ones.
+    def is_ranked(h):
+        return h["games"] >= MIN_RANKED_GAMES and (h["wgames"] or 0) >= MIN_RANKED_EFFECTIVE
+    ranked = sorted((h for h in heroes if is_ranked(h)), key=RANKING_SORTS[sort][1])
+    provisional = sorted((h for h in heroes if not is_ranked(h)),
                          key=lambda h: (-h["games"], -h["rating"], h["name"]))
     for h in provisional:
-        h["games_needed"] = MIN_RANKED_GAMES - h["games"]
+        h["mostly_old"] = h["games"] >= MIN_RANKED_GAMES
+        h["games_needed"] = max(MIN_RANKED_GAMES - h["games"],
+                                math.ceil(MIN_RANKED_EFFECTIVE - (h["wgames"] or 0)))
 
     base = baseline / 100
     examples = {"one_win": ratings.estimate(1, 1, base, prior),

@@ -100,16 +100,17 @@
     {% else %}
       <div class="text-center py-4 border rounded-3 mb-4">
         <p class="fs-5 mb-1">No heroes ranked yet.</p>
-        <p class="text-body-secondary mb-0">A hero is ranked once you've played {{ min_ranked_games }} games on it.
-          Your heroes so far are below.</p>
+        <p class="text-body-secondary mb-0">A hero is ranked once you've played {{ min_ranked_games }} games on it,
+          enough of them recently. Your heroes so far are below.</p>
       </div>
     {% endif %}
 
     {% if provisional %}
       <h2 class="h5 mt-4" id="not-ranked">Not enough games yet</h2>
       <p class="small text-body-secondary">
-        These heroes need {{ min_ranked_games }} games before they're ranked, so a lucky win or two can't
-        put them at the top. Most played first.
+        A hero is ranked once it has {{ min_ranked_games }} games, so a lucky win or two can't put it at the top,
+        and those games count as at least {{ min_ranked_effective }} once older ones are weighted down, so a record
+        from months ago can't either. Most played first.
       </p>
       <div class="table-responsive">
         <table class="table table-sm align-middle">
@@ -118,26 +119,36 @@
               <th>Hero</th>
               <th class="text-end">Games</th>
               <th class="text-end">W - L</th>
+              <th class="text-end" title="Games after weighting each by its age">Counted as</th>
               <th style="min-width: 160px">Progress to ranking</th>
               <th>Sample</th>
             </tr>
           </thead>
           <tbody>
             {% for row in provisional %}
+              {% set progress = (100 * row['eff_games'] / min_ranked_effective) if row['mostly_old']
+                                else (100 * row['games'] / min_ranked_games) %}
               <tr>
                 <td><a href="{{ url_for('matches.hero', id=row['id']) }}">{{ row['name'] }}</a></td>
                 <td class="text-end">{{ row['games'] }}</td>
                 <td class="text-end">{{ row['wins'] }} - {{ row['games'] - row['wins'] }}</td>
+                <td class="text-end">{{ row['eff_games'] }} games</td>
                 <td>
                   <div class="d-flex align-items-center gap-2">
                     <div class="progress flex-grow-1" role="progressbar" aria-label="{{ row['name'] }} progress to ranking"
-                         aria-valuenow="{{ row['games'] }}" aria-valuemin="0" aria-valuemax="{{ min_ranked_games }}">
-                      <div class="progress-bar bg-secondary" style="width: {{ 100 * row['games'] / min_ranked_games }}%"></div>
+                         aria-valuenow="{{ progress|round|int }}" aria-valuemin="0" aria-valuemax="100">
+                      <div class="progress-bar bg-secondary" style="width: {{ progress }}%"></div>
                     </div>
-                    <span class="small text-nowrap text-body-secondary">{{ row['games_needed'] }} more</span>
+                    <span class="small text-nowrap text-body-secondary">{{ row['games_needed'] }} more{{ ' recent' if row['mostly_old'] }}</span>
                   </div>
                 </td>
-                <td>{% include 'matches/_confidence.html' %}</td>
+                <td>
+                  {% if row['mostly_old'] %}
+                    <span class="badge text-bg-warning" title="{{ row['games'] }} games, but they count as only {{ row['eff_games'] }} because most are old">Mostly old games</span>
+                  {% else %}
+                    {% include 'matches/_confidence.html' %}
+                  {% endif %}
+                </td>
               </tr>
             {% endfor %}
           </tbody>
@@ -165,7 +176,7 @@
                 <strong>Your average, step by step:</strong>
                 {% if average_steps %}
                   your record is {{ average_steps['wins'] }}-{{ average_steps['losses'] }} ({{ average_steps['plain'] }}%);
-                  weighting recent games more gives {{ average_steps['weighted'] }}% across {{ average_steps['effective_games'] }}
+                  weighting recent games more gives {{ average_steps['weighted'] }}% across {{ average_steps['eff_games'] }}
                   "effective" games; the pull towards 50% then makes it <strong>{{ baseline }}%</strong>.
                   {% if (average_steps['weighted'] - baseline)|abs >= 0.5 %}The fewer games you have, the bigger that last
                   step.{% else %}With this many games the pull changes almost nothing.{% endif %}
@@ -188,9 +199,14 @@
               6-1 rates {{ examples['six_one']['rating'] }}% ({{ examples['six_one']['low']|round|int }}–{{ examples['six_one']['high']|round|int }}%)
               and 20-10 rates {{ examples['thirty']['rating'] }}% ({{ examples['thirty']['low']|round|int }}–{{ examples['thirty']['high']|round|int }}%):
               more games, narrower range.</li>
-            <li><strong>Only heroes with {{ min_ranked_games }}+ games are ranked.</strong> A hero with one or two games is
-              rated "probably about average", which would otherwise outrank any hero proven slightly below average.
-              Heroes with fewer games are listed under "Not enough games yet" instead.</li>
+            <li><strong>Only heroes with {{ min_ranked_games }}+ games, enough of them recent, are ranked.</strong> A hero
+              with one or two games is rated "probably about average", which would otherwise outrank any hero proven
+              slightly below average. The same goes for a hero whose games are mostly months old: they count for so
+              little that its rating falls back towards your average. So a ranked hero's games must also count as at
+              least {{ min_ranked_effective }} after weighting, which makes its own games at least a quarter of its
+              rating, while a hero you play about twice a month still qualifies. Other heroes are listed under
+              "Not enough games yet". <a href="{{ url_for('matches.stats') }}#rating-working">Your Stats page</a> shows
+              how every rating is built.</li>
           </ol>
           <p>On a hero page, the best lanes and matchups are ordered by the low end of their range and the toughest by
             the high end, so the ones we're surest about come first, and a hero needs at least {{ min_list_games }} games
