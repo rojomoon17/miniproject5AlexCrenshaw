@@ -20,6 +20,7 @@
           {% if g.user %}
             <li class="nav-item"><a class="nav-link" href="{{ url_for('index') }}">Matches</a></li>
             <li class="nav-item"><a class="nav-link" href="{{ url_for('matches.stats') }}">Stats</a></li>
+            <li class="nav-item"><a class="nav-link" href="{{ url_for('matches.rankings') }}">Rankings</a></li>
             <li class="nav-item"><a class="nav-link" href="{{ url_for('matches.matchups') }}">Matchups</a></li>
           {% endif %}
           <li class="nav-item"><a class="nav-link" href="{{ url_for('matches.heroes') }}">Heroes</a></li>
