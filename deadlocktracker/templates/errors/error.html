@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+  <div class="text-center py-5">
+    <p class="display-1 fw-bold text-warning mb-0">{{ code }}</p>
+    <h1 class="h3 mb-3">{{ title }}</h1>
+    <p class="col-lg-6 mx-auto text-body-secondary">{{ message }}</p>
+    <div class="d-flex justify-content-center gap-2 mt-4">
+      <a class="btn btn-warning" href="{{ url_for('index') }}">Go to home page</a>
+      <button type="button" class="btn btn-outline-light" onclick="history.back()">Go back</button>
+    </div>
+  </div>
+{% endblock %}
