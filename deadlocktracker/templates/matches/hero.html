@@ -107,12 +107,13 @@
       (best by the low end of the range shown in brackets, toughest by the high end) and only includes heroes you've
       played with or against at least {{ min_list_games }} times.</p>
     <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3 mb-4">
-      <div class="col">{{ matchup_card('Best lane matchups', best_opponents, 'No winning lane matchups yet.', 'success') }}</div>
-      <div class="col">{{ matchup_card('Toughest lane matchups', toughest_opponents, 'No losing lane matchups yet.', 'danger') }}</div>
-      <div class="col">{{ matchup_card('Best lane partners', best_partners, 'No winning lane partners yet.', 'success') }}</div>
-      <div class="col">{{ matchup_card('Toughest lane partners', toughest_partners, 'No losing lane partners yet.', 'danger') }}</div>
-      <div class="col">{{ matchup_card('Best teammates', best_teammates, 'No winning teammates yet.', 'success') }}</div>
-      <div class="col">{{ matchup_card('Toughest enemies', toughest_enemies, 'No losing enemy matchups yet.', 'danger') }}</div>
+      {% set needs = ' (a hero shows here after ' ~ min_list_games ~ ' games ' %}
+      <div class="col">{{ matchup_card('Best lane matchups', best_opponents, 'None yet' ~ needs ~ 'against it in lane).', 'success') }}</div>
+      <div class="col">{{ matchup_card('Toughest lane matchups', toughest_opponents, 'None yet' ~ needs ~ 'against it in lane).', 'danger') }}</div>
+      <div class="col">{{ matchup_card('Best lane partners', best_partners, 'None yet' ~ needs ~ 'laning with it).', 'success') }}</div>
+      <div class="col">{{ matchup_card('Toughest lane partners', toughest_partners, 'None yet' ~ needs ~ 'laning with it).', 'danger') }}</div>
+      <div class="col">{{ matchup_card('Best teammates', best_teammates, 'None yet' ~ needs ~ 'on your team).', 'success') }}</div>
+      <div class="col">{{ matchup_card('Toughest enemies', toughest_enemies, 'None yet' ~ needs ~ 'against it).', 'danger') }}</div>
     </div>
 
     {# Notes #}

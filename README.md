@@ -236,6 +236,19 @@ flask --app deadlocktracker run --debug
 
 Then open http://127.0.0.1:5000, register an account, and start logging matches.
 
+## Using it for the first time
+
+A new account starts empty, and the pages fill in as you play:
+
+- **After 1 game:** match history, stats and a page for that hero, where you can keep notes.
+- **After 3 games with or against a hero:** it can appear in a hero page's best/toughest lists.
+- **After 10 games on a hero:** it's ranked on the Rankings page (before that it's listed under
+  "Not enough games yet" with how many more it needs).
+
+Every rating starts at an even 50% and only moves as your record builds, so the first few games
+change little. The match history page has a short getting-started guide, and the Rankings page
+explains the full system even before you've logged anything.
+
 ## Updating the hero roster
 
 The roster has 44 heroes, including the six from **Old Gods, New Blood** (January 2026) and the

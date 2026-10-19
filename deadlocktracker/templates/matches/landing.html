@@ -6,31 +6,51 @@
   <div class="p-5 rounded-3 hero-banner">
     <h1 class="display-5 fw-bold">Track your Deadlock matches</h1>
     <p class="col-lg-8 fs-5">
-      Log every game, see your win rate and KDA on each hero, and figure out who you should
-      really be locking in.
+      Log every game, see how you really do on each hero, in each lane and against each matchup,
+      and figure out who you should be locking in.
     </p>
     <a class="btn btn-warning btn-lg me-2" href="{{ url_for('auth.register') }}">Get started</a>
     <a class="btn btn-outline-light btn-lg" href="{{ url_for('auth.login') }}">Log in</a>
   </div>
 
-  <div class="row g-4 mt-2">
-    <div class="col-md-4">
+  <div class="row row-cols-1 row-cols-md-3 g-4 mt-2">
+    <div class="col">
       <div class="card h-100"><div class="card-body">
         <h2 class="h5">Log matches</h2>
-        <p class="mb-0">Hero, result, K/D/A, souls and notes, saved in seconds from any page.</p>
+        <p class="mb-0">Your hero, result, lane, K/D/A, souls and match length, plus all 11 other heroes in the
+          game: your lane partner, your two lane opponents and the rest of both teams. Saved from any page.</p>
       </div></div>
     </div>
-    <div class="col-md-4">
+    <div class="col">
       <div class="card h-100"><div class="card-body">
-        <h2 class="h5">See your stats</h2>
-        <p class="mb-0">Win rate, KDA and average souls, broken down for every hero you play.</p>
+        <h2 class="h5">Hero pages</h2>
+        <p class="mb-0">For each hero you play: your best lane, best and toughest lane matchups, partners and
+          teammates, souls per minute, and your own notes.</p>
       </div></div>
     </div>
-    <div class="col-md-4">
+    <div class="col">
       <div class="card h-100"><div class="card-body">
-        <h2 class="h5">Browse heroes</h2>
-        <p class="mb-0">Pick a hero and see every game you've played on them.</p>
+        <h2 class="h5">Fair rankings</h2>
+        <p class="mb-0">Heroes ranked by a rating that doesn't get fooled by one lucky win and counts recent games
+          more, with a range showing how sure it is.</p>
       </div></div>
+    </div>
+  </div>
+
+  <div class="card mt-4">
+    <div class="card-header">How it works</div>
+    <div class="card-body">
+      <ol class="mb-0">
+        <li class="mb-2"><strong>Log each game after you play it.</strong> Matchups are kept separate per hero, so
+          beating someone in lane on one hero doesn't count for another.</li>
+        <li class="mb-2"><strong>Everything starts at an even 50% and moves as your games add up.</strong> One win
+          won't make a hero look like your best; it takes a real record to move the numbers far.</li>
+        <li class="mb-2"><strong>More shows up as you play.</strong> A hero gets its own page after your first game
+          on it, a matchup is listed once you've seen that hero {{ min_list_games }} times, and a hero is ranked
+          after {{ min_ranked_games }} games.</li>
+        <li><strong>Recent games count more.</strong> A game {{ half_life_days }} days older than your latest counts
+          half as much, so the numbers follow how you play now.</li>
+      </ol>
     </div>
   </div>
 {% endblock %}

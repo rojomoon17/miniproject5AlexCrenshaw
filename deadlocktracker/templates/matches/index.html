@@ -11,9 +11,29 @@
   {% if matches %}
     {% include 'matches/_table.html' %}
   {% else %}
-    <div class="text-center py-5 border rounded-3">
-      <p class="fs-5">No matches logged yet.</p>
+    <div class="text-center py-5 border rounded-3 mb-4">
+      <p class="fs-5 mb-1">No matches logged yet.</p>
+      <p class="text-body-secondary">Log a game right after you play it, or use Quick log in the menu from any page.</p>
       <a class="btn btn-warning" href="{{ url_for('matches.create') }}">Log your first match</a>
+    </div>
+
+    <div class="card">
+      <div class="card-header">Getting started</div>
+      <div class="card-body">
+        <ol class="mb-0">
+          <li class="mb-2"><strong>What to fill in:</strong> your hero, win or loss, the lane you played (Yellow,
+            Blue or Green) and the other 11 heroes in the game. Mark your lane partner and your
+            two lane opponents. Souls, length (minutes:seconds), K/D/A, side and notes are optional.</li>
+          <li class="mb-2"><strong>What you'll see after one game:</strong> your match history, stats, and a page for
+            that hero where you can keep notes.</li>
+          <li class="mb-2"><strong>As you keep playing:</strong> a lane matchup, partner or teammate appears on a hero's
+            best/toughest lists once you've played with or against it {{ min_list_games }} times. A hero joins the
+            <a href="{{ url_for('matches.rankings') }}">rankings</a> after {{ min_ranked_games }} games.</li>
+          <li><strong>Ratings start at an even 50%</strong> and only move away from it as your record builds, so a
+            single lucky win won't top the charts. Recent games count more. The full explanation is on the
+            <a href="{{ url_for('matches.rankings') }}#how">Rankings page</a>.</li>
+        </ol>
+      </div>
     </div>
   {% endif %}
 {% endblock %}
