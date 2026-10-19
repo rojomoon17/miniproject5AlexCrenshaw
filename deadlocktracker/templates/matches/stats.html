@@ -48,8 +48,8 @@
         <div class="row g-4">
           <div class="col-lg-4">
             <h3 class="h6">1. How much each game counts</h3>
-            <p class="text-body-secondary mb-2">Your latest game counts as a full game; a game {{ half_life_days }}
-              days older counts half. The "Counts as" column in your
+            <p class="text-body-secondary mb-2">Games from the {{ full_weight_days }} days before your latest game
+              count as full games; after that a game counts half as much every {{ half_life_days }} days. The "Counts as" column in your
               <a class="link-secondary" href="{{ url_for('index') }}">match history</a> shows each game's weight.</p>
             <table class="table table-sm mb-0">
               <thead><tr><th>Days before your latest game</th><th class="text-end">Counts as</th></tr></thead>
@@ -114,7 +114,7 @@
               <td class="text-end">{{ row['wins'] }} - {{ row['games'] - row['wins'] }}</td>
               <td class="text-end">{{ row['win_rate'] }}%</td>
               <td class="text-end">
-                {{ row['eff_wins'] }} - {{ (row['eff_games'] - row['eff_wins'])|round(1) }}
+                {{ row['eff_wins'] }} - {{ (row['eff_games'] - row['eff_wins'])|round(2) }}
                 <div class="small text-body-secondary">{{ row['eff_games'] }} of {{ row['games'] }} game{{ '' if row['games'] == 1 else 's' }}</div>
               </td>
               <td>

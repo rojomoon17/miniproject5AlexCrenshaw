@@ -52,8 +52,9 @@ SPM_AGG = """
          AS INTEGER)
 """
 
-# How much one match counts towards ratings right now: 1 for the player's most
-# recent game, halving every ratings.HALF_LIFE_DAYS before that.
+# How much one match counts towards ratings right now: 1 for games within
+# ratings.FULL_WEIGHT_DAYS of the player's most recent game, then halving every
+# ratings.HALF_LIFE_DAYS.
 _AGE = ("age_weight(julianday((SELECT MAX(l.played) FROM match_log l WHERE l.user_id = m.user_id))"
         " - julianday(m.played))")
 
@@ -102,7 +103,7 @@ MIN_RANKED_GAMES = 10
 # plays a hero about twice a month have it ranked.
 MIN_RANKED_EFFECTIVE = 5
 # Example ages (days before your latest game) for the weight table on Stats.
-WEIGHT_EXAMPLE_DAYS = (0, 30, 60, 120, 180, 365)
+WEIGHT_EXAMPLE_DAYS = (0, 30, 60, 90, 150, 210, 365)
 
 
 def win_rate(wins, games):
@@ -152,8 +153,10 @@ def rate_rows(rows, baseline):
     for item in rated:
         item["confidence"] = confidence(item["games"])
         eff_games = item["wgames"] or 0
-        item.update(start=start, prior=round(prior, 1), eff_wins=round(item["wwins"] or 0, 1),
-                    eff_games=round(eff_games, 1),
+        # Two decimals, so the formula shown with these numbers gives the rating
+        # shown even when the weighted counts are small.
+        item.update(start=start, prior=round(prior, 2), eff_wins=round(item["wwins"] or 0, 2),
+                    eff_games=round(eff_games, 2),
                     own_share=round(100 * eff_games / (eff_games + prior)))
     return rated, prior
 
@@ -194,7 +197,8 @@ def blank_slots():
 def inject_heroes():
     """Make the rating settings available to every template, and the hero list
     (for the navbar quick-log modal) once logged in."""
-    settings = {"half_life_days": ratings.HALF_LIFE_DAYS, "range_percent": int(ratings.RANGE * 100),
+    settings = {"half_life_days": ratings.HALF_LIFE_DAYS, "full_weight_days": ratings.FULL_WEIGHT_DAYS,
+                "range_percent": int(ratings.RANGE * 100),
                 "min_list_games": MIN_LIST_GAMES, "min_ranked_games": MIN_RANKED_GAMES,
                 "min_ranked_effective": MIN_RANKED_EFFECTIVE,
                 "baseline_prior_games": ratings.BASELINE_PRIOR_GAMES,

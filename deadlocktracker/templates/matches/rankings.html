@@ -164,8 +164,10 @@
             and treats a game from months ago the same as last night's. Ratings fix both, the same way for every
             player, whether you've played 15 games or 1,500:</p>
           <ol>
-            <li class="mb-2"><strong>Recent games count more.</strong> A game {{ half_life_days }} days older than your latest
-              game counts half as much, {{ half_life_days * 2 }} days older a quarter. Age is measured from your latest game,
+            <li class="mb-2"><strong>Recent games count more.</strong> Games from the {{ full_weight_days }} days before your
+              latest game count fully; after that a game's weight halves every {{ half_life_days }} days, so a game
+              {{ full_weight_days + half_life_days }} days older counts half and {{ full_weight_days + 2 * half_life_days }}
+              days older a quarter. Age is measured from your latest game,
               not today's date, so taking a break doesn't erase your history. W-L records and game counts still include
               every game.</li>
             <li class="mb-2"><strong>Each rating starts from the level above it.</strong> Your average starts at 50%, which

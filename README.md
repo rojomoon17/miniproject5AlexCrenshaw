@@ -29,8 +29,8 @@ from Valve or any third-party stats service.
   counts at each age, how your average is worked out, and for each hero its weighted ("counted as")
   record, how much of the rating comes from its own games versus your average, and the formula
   with the real numbers
-- The match history shows how much each game **counts as** towards ratings right now (1 for your
-  latest game, halving every 60 days before it)
+- The match history shows how much each game **counts as** towards ratings right now (1 for games in
+  the 30 days before your latest, then halving every 60 days)
 - **Matchups** page: pick one of your heroes and see your win rate and souls/min against each lane
   opponent, with each lane partner, and with each hero on the enemy team or your team. Matchups are
   kept separate per hero: beating a hero in lane on Apollo says nothing about facing them on Shiv
@@ -62,7 +62,8 @@ it is tuned to a particular player or data set; every setting is either worked o
 player's own games or was chosen by testing on many different kinds of player (see below).
 
 1. **Recent games count more.** Each game is weighted by its age, measured from the player's most
-   recent game: a game 60 days older counts half as much, 120 days a quarter, and so on. Ratings
+   recent game. Games from the 30 days before it count fully; after that a game's weight halves
+   every 60 days, so a game 90 days older counts half, 150 days a quarter, and so on. Ratings
    follow how you play now and the current patch, and because age is measured from your latest game
    rather than today's date, a break from the game doesn't erase your history. W-L records and game
    counts on every page still include every game.
@@ -106,11 +107,11 @@ The 10-game minimum for the Rankings page is needed whatever kind of player you 
 or two games is rated "probably about average", which would otherwise outrank any hero that's proven
 slightly below average. The same happens to a hero whose games are mostly months old: weighted by
 age, its 10+ games may count as only 3 or 4, so its rating falls back towards your average (for
-example, a 6-8 record whose losses were long ago rated 58% for a 60% player and ranked 5th in
-testing). So a ranked hero's games must also count as at least **5 effective games**. At the
+example, 12 games all played 200 days before your latest count as about 1.7). So a ranked hero's
+games must also count as at least **5 effective games**. At the
 largest *k* (15) that makes the hero's own games at least a quarter of its rating, while a hero
 you play about twice a month still qualifies (a steady rate of *r* games a day settles at about
-86.6 × *r* effective games). Records are also tagged **Low** (under 3 games), **Medium** (3–9) or
+(30 + 86.6) × *r* = 116.6 × *r* effective games). Records are also tagged **Low** (under 3 games), **Medium** (3–9) or
 **High** (10+).
 
 ### How it was validated
@@ -128,10 +129,13 @@ histories (1,500 games). Each was simulated 400 times.
   of player, so the ranges are trustworthy and lean slightly cautious. Two choices made this hold
   for everyone: capping *k* at 15 (with no cap, ranges were overconfident, catching the true value
   only 47–72% of the time) and starting your average at 50% (which lifted newcomers from 71% to 86%).
-- **Recency:** the 60-day half-life was compared with 15, 30, 120 and 240 days and no recency at all,
+- **Recency:** a 60-day half-life was compared with 15, 30, 120 and 240 days and no recency at all,
   for players who play daily, every few days or weekly, with stable skill, slowly changing skill, or a
   sudden change from a patch. No single half-life is best for everyone, but 60 days had the smallest
-  worst-case error.
+  worst-case error. Letting the most recent 30 days count fully before the halving starts was then
+  compared with halving from day one and with 30-, 45- and 90-day half-lives after the 30 days:
+  30 full days then a 60-day half-life had the smallest worst-case error (6.9 points, against 7.3)
+  and a lower average error (5.7 against 5.8).
 - **Matchups:** with effects planted on specific matchups (for example ±25% win chance against one
   hero in lane), the method put the planted matchup in a hero page's top 3 about 80% of the time with
   45 games on the hero and about 95% with 150 games, compared with about 75% and 80% for a simple

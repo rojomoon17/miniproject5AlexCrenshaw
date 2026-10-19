@@ -14,7 +14,8 @@ At every level:
 
 1. Recency: each game is weighted by its age, measured from your most recent
    game (not today's date, so a break from the game doesn't erase your history).
-   A game HALF_LIFE_DAYS older than your latest counts half as much.
+   Games within FULL_WEIGHT_DAYS of your latest count fully; after that a
+   game's weight halves every HALF_LIFE_DAYS.
 2. Empirical Bayes: each record starts from the level above with a prior
    strength of k imaginary games, and k is estimated from the data: if the
    records' win rates are spread further apart than luck alone would explain,
@@ -31,10 +32,14 @@ stable, slowly changing and patch-affected skill, not by fitting any one data se
 import math
 from datetime import datetime
 
-# Recency half-life. No single value is best for every player (short ones suit
-# fast-changing skill, long ones stable skill and players with few games a week);
-# 60 days had the smallest worst-case error across daily, every-3-days and
-# weekly players with stable, drifting or patch-changed skill.
+# Recency: games from the last FULL_WEIGHT_DAYS (before your latest game) count
+# fully, then a game's weight halves every HALF_LIFE_DAYS. No single setting is
+# best for every player (short ones suit fast-changing skill, long ones stable
+# skill and players with few games a week). Across daily, every-3-days and weekly
+# players with stable, drifting or patch-changed skill, 30 full days then a
+# 60-day half-life had the smallest worst-case error (6.9 points, against 7.3
+# for a 60-day half-life from day one) and a lower average error too.
+FULL_WEIGHT_DAYS = 30
 HALF_LIFE_DAYS = 60
 RANGE = 0.80  # the shown range covers the middle 80% of likely win rates
 LOW_Q, HIGH_Q = (1 - RANGE) / 2, 1 - (1 - RANGE) / 2
@@ -60,10 +65,11 @@ def baseline_rate(wins, games):
 
 
 def age_weight(age_days):
-    """Weight of a game played `age_days` before your latest: 1, then 0.5 after HALF_LIFE_DAYS."""
+    """Weight of a game played `age_days` before your latest: 1 for the first
+    FULL_WEIGHT_DAYS, then halving every HALF_LIFE_DAYS."""
     if age_days is None:
         return 1.0
-    return 0.5 ** (max(age_days, 0.0) / HALF_LIFE_DAYS)
+    return 0.5 ** (max(age_days - FULL_WEIGHT_DAYS, 0.0) / HALF_LIFE_DAYS)
 
 
 def recency_weight(played, latest):

@@ -2,7 +2,8 @@
    `baseline_note` saying where the baseline comes from. #}
 <p class="small text-body-secondary mb-3">
   <strong>Ratings</strong> are win rates adjusted for how many games there are and how recent they are
-  (a game {{ half_life_days }} days older than your latest counts half as much). Each starts from
+  (games from the {{ full_weight_days }} days before your latest count fully, then half as much every
+  {{ half_life_days }} days). Each starts from
   {{ baseline_label }}, <strong>{{ baseline }}%</strong>{% if baseline_note %} ({{ baseline_note }}){% endif %},
   shown as the yellow line on the bars, and only moves away from it as the games add up.
   The shaded band is where the true win rate probably is ({{ range_percent }}% likely); green means it's
