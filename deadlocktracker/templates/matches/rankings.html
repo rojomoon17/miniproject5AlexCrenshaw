@@ -28,7 +28,7 @@
         <noscript><div class="col-auto"><button type="submit" class="btn btn-outline-light">Sort</button></div></noscript>
       </form>
 
-      {% with baseline_label = 'your overall win rate' %}
+      {% with baseline_label = 'your average' %}
         {% include 'matches/_rating_help.html' %}
       {% endwith %}
 
@@ -147,31 +147,39 @@
         <div class="card-header">How the ranking works</div>
         <div class="card-body small">
           <p>A plain win rate is misleading on small samples (win your only game on a hero and it reads 100%)
-            and treats a game from months ago the same as last night's. Each rating fixes both:</p>
+            and treats a game from months ago the same as last night's. Ratings fix both, the same way for every
+            player, whether you've played 15 games or 1,500:</p>
           <ol>
-            <li class="mb-2"><strong>Recent games count more.</strong> A game {{ half_life_days }} days old counts half as
-              much as one today, and one {{ half_life_days * 2 }} days old a quarter, so ratings follow how you play now
-              and the current patch. W-L records and game counts still show every game.</li>
-            <li class="mb-2"><strong>Every rating starts from your average.</strong> Each hero starts as if it already had
-              some games at your overall win rate ({{ baseline }}% across {{ total_games }} games), and your real games are
-              added on top. How many "starting games" to use is worked out from your own data: the more your heroes'
-              win rates differ by more than luck would explain, the fewer starting games, so real differences show
-              through. For your heroes right now that's <strong>{{ prior }} games</strong>.</li>
+            <li class="mb-2"><strong>Recent games count more.</strong> A game {{ half_life_days }} days older than your latest
+              game counts half as much, {{ half_life_days * 2 }} days older a quarter. Age is measured from your latest game,
+              not today's date, so taking a break doesn't erase your history. W-L records and game counts still include
+              every game.</li>
+            <li class="mb-2"><strong>Each rating starts from the level above it.</strong> Your average starts at 50%, which
+              is what matchmaking aims every player at, and moves to your real average as your games add up
+              ({{ baseline_prior_games }} games of pull towards 50%). Each hero then starts from your average, and each lane or
+              matchup from your rating on that hero. Your games are added on top.</li>
+            <li class="mb-2"><strong>The data decides how strong that starting point is.</strong> If your heroes' win rates
+              differ by more than luck would explain, the differences are real and the starting point counts for
+              little; if the spread looks like luck, it counts for more. This is worked out from your own games each
+              time (between {{ k_min }} and {{ k_max }} "starting games"); for your heroes right now it's
+              <strong>{{ prior }}</strong>.</li>
             <li class="mb-2"><strong>Every rating comes with a range.</strong> The bar shows where your true win rate
               probably is ({{ range_percent }}% likely). With your numbers, a 1-0 record rates
               {{ examples['one_win']['rating'] }}% ({{ examples['one_win']['low']|round|int }}–{{ examples['one_win']['high']|round|int }}%),
               6-1 rates {{ examples['six_one']['rating'] }}% ({{ examples['six_one']['low']|round|int }}–{{ examples['six_one']['high']|round|int }}%)
               and 20-10 rates {{ examples['thirty']['rating'] }}% ({{ examples['thirty']['low']|round|int }}–{{ examples['thirty']['high']|round|int }}%):
               more games, narrower range.</li>
-            <li><strong>Only heroes with {{ min_ranked_games }}+ games are ranked.</strong> Heroes with fewer games are
-              listed under "Not enough games yet". Without this, a hero with one or two games ("probably about
-              average") would often outrank a main that's proven a bit below average, which isn't what a ranking of
-              your best heroes should do.</li>
+            <li><strong>Only heroes with {{ min_ranked_games }}+ games are ranked.</strong> A hero with one or two games is
+              rated "probably about average", which would otherwise outrank any hero proven slightly below average.
+              Heroes with fewer games are listed under "Not enough games yet" instead.</li>
           </ol>
-          <p class="mb-0">Lanes and matchups on a hero page work the same way, starting from your win rate on that
-            hero. The best ones are ordered by the low end of their range and the toughest by the high end, so the
-            ones we're surest about come first, and a hero needs at least {{ min_list_games }} games with or against you
-            to be listed.</p>
+          <p>On a hero page, the best lanes and matchups are ordered by the low end of their range and the toughest by
+            the high end, so the ones we're surest about come first, and a hero needs at least {{ min_list_games }} games
+            with or against you to be listed.</p>
+          <p class="mb-0 text-body-secondary">These settings were chosen by testing on many different kinds of player
+            (newcomers, one-tricks, flex players, strong and struggling players, from 15 to 1,500 games). Across all of
+            them, ratings were closer to the true win rate than the plain win rate was, and the true win rate fell
+            inside the {{ range_percent }}% range 79–91% of the time.</p>
         </div>
       </div>
     {% endif %}

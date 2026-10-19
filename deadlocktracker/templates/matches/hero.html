@@ -71,7 +71,7 @@
       </div></div></div>
     </div>
 
-    {% with baseline_label = 'your win rate on ' ~ hero['name'] %}
+    {% with baseline_label = 'your rating on ' ~ hero['name'] %}
       {% include 'matches/_rating_help.html' %}
     {% endwith %}
 
@@ -100,8 +100,8 @@
 
     {# Matchups and pairings #}
     <h2 class="h4">Matchups &amp; pairings</h2>
-    <p class="small text-body-secondary">Only from your games as {{ hero['name'] }}. "Best" are rated above your usual
-      {{ baseline }}% on {{ hero['name'] }} and "toughest" below it. Each list puts the ones we're surest about first
+    <p class="small text-body-secondary">Only from your games as {{ hero['name'] }}. "Best" are rated above your
+      {{ baseline }}% rating on {{ hero['name'] }} and "toughest" below it. Each list puts the ones we're surest about first
       (best by the low end of the range shown in brackets, toughest by the high end) and only includes heroes you've
       played with or against at least {{ min_list_games }} times.</p>
     <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3 mb-4">

@@ -1,8 +1,8 @@
 {# Explains ratings. Expects `baseline` (0-100) and `baseline_label`. #}
 <p class="small text-body-secondary mb-3">
   <strong>Ratings</strong> are win rates adjusted for how many games there are and how recent they are
-  (a game {{ half_life_days }} days old counts half as much as one today). Each starts from
+  (a game {{ half_life_days }} days older than your latest counts half as much). Each starts from
   {{ baseline_label }} ({{ baseline }}%, the line on the bars) and only moves away from it as the games add up.
-  The shaded band is the likely range ({{ range_percent }}%); green means it's clearly above the line,
-  red clearly below. <a class="link-secondary" href="{{ url_for('matches.rankings') }}#how">How it works</a>
+  The shaded band is where the true win rate probably is ({{ range_percent }}% likely); green means it's
+  clearly above the line, red clearly below. <a class="link-secondary" href="{{ url_for('matches.rankings') }}#how">How it works</a>
 </p>
