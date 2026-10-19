@@ -311,6 +311,7 @@ and hero list, all templates, CSS and JavaScript, `requirements.txt` and this RE
 - researched the current hero roster on the web
 - wrote and ran the tests, and generated the sample and stress-test match data used for testing
 - set up the environment, made every commit (authored as Claude) and pushed them to GitHub
+- this README and disclosure
 
 **My part was directing the project.** I chose the idea (a Deadlock match tracker) and decided what
 it should do and how it should behave, through requests and feedback, including:
