@@ -13,6 +13,7 @@
         <th class="text-end">Length</th>
         <th class="text-end">Souls/min</th>
         <th>Lane vs</th>
+        <th class="text-end" title="How much this game counts towards ratings now: 1 for your latest game, half every {{ half_life_days }} days older">Counts as</th>
         <th></th>
       </tr>
     </thead>
@@ -33,6 +34,7 @@
           <td class="text-end">{{ match['duration_sec']|mmss }}</td>
           <td class="text-end">{{ '{:,}'.format(match['spm']) if match['spm'] is not none else '—' }}</td>
           <td class="small">{{ match['lane_opponents'] or '—' }}</td>
+          <td class="text-end small text-body-secondary">{{ '%.2f'|format(match['weight']) }}</td>
           <td class="text-end">
             <a class="btn btn-sm btn-outline-light" href="{{ url_for('matches.detail', id=match['id']) }}">View</a>
           </td>

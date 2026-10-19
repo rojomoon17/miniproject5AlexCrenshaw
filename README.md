@@ -25,7 +25,12 @@ from Valve or any third-party stats service.
   calculated for one hero at a time, because heroes farm at very different rates
 - Edit matches, and delete them through a Bootstrap confirmation modal
 - **Stats** page: games, win rate, overall KDA and heroes played, plus a per-hero table with
-  rating, average souls and souls/min
+  rating, average souls and souls/min. It shows the working behind every rating: how much a game
+  counts at each age, how your average is worked out, and for each hero its weighted ("counted as")
+  record, how much of the rating comes from its own games versus your average, and the formula
+  with the real numbers
+- The match history shows how much each game **counts as** towards ratings right now (1 for your
+  latest game, halving every 60 days before it)
 - **Matchups** page: pick one of your heroes and see your win rate and souls/min against each lane
   opponent, with each lane partner, and with each hero on the enemy team or your team. Matchups are
   kept separate per hero: beating a hero in lane on Apollo says nothing about facing them on Shiv
@@ -35,10 +40,10 @@ from Valve or any third-party stats service.
   matches on that hero; and your match history on them
 - **Heroes** page: the full roster with your record on each hero; heroes you've played link to
   their hero page
-- **Rankings** page: your heroes with at least 10 games, ranked from best to worst by their
-  **rating** (see below), with a podium for your top three, a range bar for each hero and each hero's
-  best lane. Heroes with fewer games are listed separately under "Not enough games yet" with how many
-  more games they need. A GET form lets you rank by rating, the safe (low-end) estimate, win rate
+- **Rankings** page: your heroes with at least 10 games, enough of them recent, ranked from best to
+  worst by their **rating** (see below), with a podium for your top three, a range bar for each hero
+  and each hero's best lane. Other heroes are listed separately under "Not enough games yet" with how
+  many more games they need, and heroes held back because their games are mostly old are marked so. A GET form lets you rank by rating, the safe (low-end) estimate, win rate
   (all games, unadjusted), games played or KDA. The first three can give different orders:
   - **Rating** is the best single guess at how good you are on a hero now
   - **Safe estimate** puts the heroes you're surest about first, so a big solid record (65-35)
@@ -90,7 +95,7 @@ How each list uses the rating:
 
 | List | Starting point | Ordered by | Minimum games |
 |---|---|---|---|
-| Rankings page | your average | rating (or another option in the form) | 10 |
+| Rankings page | your average | rating (or another option in the form) | 10, counting as 5+ after weighting |
 | A hero's best lane | your rating on that hero | low end of the range | — |
 | Best lane matchups / partners / teammates | your rating on that hero | low end of the range | 3 |
 | Toughest lane matchups / partners / enemies | your rating on that hero | high end of the range | 3 |
@@ -99,7 +104,14 @@ Ordering the best by the low end of the range, and the toughest by the high end,
 we're surest about first: a 5-1 matchup outranks a 1-0 one even though 1-0 is a "perfect" record.
 The 10-game minimum for the Rankings page is needed whatever kind of player you are: a hero with one
 or two games is rated "probably about average", which would otherwise outrank any hero that's proven
-slightly below average. Records are also tagged **Low** (under 3 games), **Medium** (3–9) or **High** (10+).
+slightly below average. The same happens to a hero whose games are mostly months old: weighted by
+age, its 10+ games may count as only 3 or 4, so its rating falls back towards your average (for
+example, a 6-8 record whose losses were long ago rated 58% for a 60% player and ranked 5th in
+testing). So a ranked hero's games must also count as at least **5 effective games**. At the
+largest *k* (15) that makes the hero's own games at least a quarter of its rating, while a hero
+you play about twice a month still qualifies (a steady rate of *r* games a day settles at about
+86.6 × *r* effective games). Records are also tagged **Low** (under 3 games), **Medium** (3–9) or
+**High** (10+).
 
 ### How it was validated
 
@@ -265,8 +277,8 @@ A new account starts empty, and the pages fill in as you play:
 
 - **After 1 game:** match history, stats and a page for that hero, where you can keep notes.
 - **After 3 games with or against a hero:** it can appear in a hero page's best/toughest lists.
-- **After 10 games on a hero:** it's ranked on the Rankings page (before that it's listed under
-  "Not enough games yet" with how many more it needs).
+- **After 10 games on a hero:** it's ranked on the Rankings page, as long as you've played it
+  recently enough (before that it's listed under "Not enough games yet" with how many more it needs).
 
 Every rating starts at an even 50% and only moves as your record builds, so the first few games
 change little. The match history page has a short getting-started guide, and the Rankings page

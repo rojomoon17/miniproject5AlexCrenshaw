@@ -38,12 +38,53 @@
       </div>
     </div>
     <p class="small text-body-secondary mb-4">
-      <strong>Rating</strong> is your win rate adjusted for how many games you have and how recent they are, with the
-      likely range in brackets: with only a few games it stays close to your average, so one lucky win doesn't read
-      as 100% (<a class="link-secondary" href="{{ url_for('matches.rankings') }}#how">how it works</a>).
       Souls and souls/min are only shown per hero, because heroes farm at very different rates.
       Click a hero for lanes, matchups and notes, or see your <a href="{{ url_for('matches.rankings') }}">hero rankings</a>.
     </p>
+
+    <div class="card mb-4" id="rating-working">
+      <div class="card-header">How your ratings are worked out</div>
+      <div class="card-body small">
+        <div class="row g-4">
+          <div class="col-lg-4">
+            <h3 class="h6">1. How much each game counts</h3>
+            <p class="text-body-secondary mb-2">Your latest game counts as a full game; a game {{ half_life_days }}
+              days older counts half. The "Counts as" column in your
+              <a class="link-secondary" href="{{ url_for('index') }}">match history</a> shows each game's weight.</p>
+            <table class="table table-sm mb-0">
+              <thead><tr><th>Days before your latest game</th><th class="text-end">Counts as</th></tr></thead>
+              <tbody>
+                {% for days, weight in weights %}
+                  <tr><td>{{ days }}</td><td class="text-end">{{ '%.2f'|format(weight) }} games</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="col-lg-4">
+            <h3 class="h6">2. Your average: {{ average['result'] }}%</h3>
+            <ul class="list-unstyled mb-0">
+              <li class="mb-2">Your record: <strong>{{ average['wins'] }}-{{ average['losses'] }}</strong>
+                ({{ average['plain'] }}%).</li>
+              <li class="mb-2">Weighted by age it counts as <strong>{{ average['eff_wins'] }} wins in
+                {{ average['eff_games'] }} games</strong> ({{ average['weighted'] }}%).</li>
+              <li class="mb-2">Pulled towards 50% by {{ baseline_prior_games }} games, which matters most while you're new:
+                <br><code>({{ baseline_prior_games }} × 50% + {{ average['eff_wins'] }}) ÷ ({{ baseline_prior_games }} + {{ average['eff_games'] }})
+                ≈ {{ average['result'] }}%</code></li>
+            </ul>
+          </div>
+          <div class="col-lg-4">
+            <h3 class="h6">3. Each hero's rating</h3>
+            <p class="mb-2">Each hero starts at your average, counted as <strong>{{ prior }} games</strong>, and its own
+              weighted games are added on top:</p>
+            <p class="mb-2"><code>(starting games × your average + weighted wins) ÷ (starting games + weighted games)</code></p>
+            <p class="text-body-secondary mb-0">The number of starting games ({{ k_min }}–{{ k_max }}) comes from your data:
+              the more your heroes' records differ beyond what luck explains, the fewer it uses. "Rating built from"
+              below shows how much of each rating is that hero's own games and how much is your average.
+              <a class="link-secondary" href="{{ url_for('matches.rankings') }}#how">More detail</a></p>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <h2 class="h4">By hero</h2>
     <div class="table-responsive">
@@ -54,7 +95,9 @@
             <th class="text-end">Rating</th>
             <th class="text-end">Games</th>
             <th class="text-end">W - L</th>
-            <th style="min-width: 160px">Win rate</th>
+            <th class="text-end">Win rate</th>
+            <th class="text-end" title="Wins and losses after weighting each game by its age">Counted as</th>
+            <th style="min-width: 230px">Rating built from</th>
             <th class="text-end">KDA</th>
             <th class="text-end">Avg souls</th>
             <th class="text-end">Souls/min</th>
@@ -69,15 +112,27 @@
               </td>
               <td class="text-end">{{ row['games'] }}</td>
               <td class="text-end">{{ row['wins'] }} - {{ row['games'] - row['wins'] }}</td>
+              <td class="text-end">{{ row['win_rate'] }}%</td>
+              <td class="text-end">
+                {{ row['eff_wins'] }} - {{ (row['eff_games'] - row['eff_wins'])|round(1) }}
+                <div class="small text-body-secondary">{{ row['eff_games'] }} of {{ row['games'] }} game{{ '' if row['games'] == 1 else 's' }}</div>
+              </td>
               <td>
-                <div class="d-flex align-items-center gap-2">
-                  <div class="progress flex-grow-1" role="progressbar" aria-label="{{ row['name'] }} win rate"
-                       aria-valuenow="{{ row['win_rate'] }}" aria-valuemin="0" aria-valuemax="100">
-                    <div class="progress-bar {{ 'bg-success' if row['win_rate'] >= 50 else 'bg-danger' }}"
-                         style="width: {{ row['win_rate'] }}%"></div>
+                <div class="progress-stacked" title="{{ row['own_share'] }}% from your {{ row['name'] }} games, {{ 100 - row['own_share'] }}% from your average">
+                  <div class="progress" role="progressbar" aria-label="Share from your {{ row['name'] }} games"
+                       aria-valuenow="{{ row['own_share'] }}" aria-valuemin="0" aria-valuemax="100" style="width: {{ row['own_share'] }}%">
+                    <div class="progress-bar bg-warning"></div>
                   </div>
-                  <span class="small win-rate-label">{{ row['win_rate'] }}%</span>
+                  <div class="progress" role="progressbar" aria-label="Share from your average"
+                       aria-valuenow="{{ 100 - row['own_share'] }}" aria-valuemin="0" aria-valuemax="100" style="width: {{ 100 - row['own_share'] }}%">
+                    <div class="progress-bar bg-secondary"></div>
+                  </div>
                 </div>
+                <div class="small mt-1">
+                  <span class="text-warning">{{ row['own_share'] }}% your games</span> ·
+                  <span class="text-body-secondary">{{ 100 - row['own_share'] }}% your average</span>
+                </div>
+                <code class="small">({{ row['prior'] }} × {{ row['start'] }}% + {{ row['eff_wins'] }}) ÷ ({{ row['prior'] }} + {{ row['eff_games'] }}) ≈ {{ row['rating'] }}%</code>
               </td>
               <td class="text-end">{{ row['kda'] }}</td>
               <td class="text-end">{{ '{:,}'.format(row['avg_souls']|int) if row['avg_souls'] is not none else '—' }}</td>
