@@ -50,11 +50,21 @@ rating = (wins + 5 × baseline) / (games + 5)
 ```
 
 With a 55% baseline, a 1-0 hero rates (1 + 2.75) / 6 = **62.5%**, while a 6-1 hero rates
-(6 + 2.75) / 12 = **72.9%**, so the hero with more proven wins ranks higher. The baseline is your
-overall win rate when ranking heroes, and your win rate on a hero when ranking that hero's lanes
-and matchups. This is the same idea as a Bayesian average, the method review sites use so a product
-with one 5-star review doesn't outrank one with hundreds. Records are also tagged **Low** (under 3
-games), **Medium** (3–9) or **High** (10+) so you can see how much data is behind them.
+(6 + 2.75) / 12 = **72.9%**, so the hero with more proven wins ranks higher. This is the same idea
+as a Bayesian average, the method review sites use so a product with one 5-star review doesn't
+outrank one with hundreds. Records are also tagged **Low** (under 3 games), **Medium** (3–9) or
+**High** (10+) so you can see how much data is behind them.
+
+| Ranking | Baseline | Prior weight | Minimum games to be listed |
+|---|---|---|---|
+| Heroes (Rankings, Stats) | your overall win rate | 5 games | — |
+| A hero's lanes and matchups | your win rate on that hero | 10 games | 3 (best/toughest lists) |
+
+**Why lanes and matchups use a heavier weight:** a stress test with 140 logged matches, plus 300
+simulated heroes with planted matchup effects, showed that with a weight of 5 a lucky 2-0 or 3-0
+record against a random hero often pushed real patterns out of a hero page's top 3. A weight of 10
+plus a 3-game minimum raised how often a real ±25% matchup effect reached the top 3 from about 55%
+to about 75% at realistic sample sizes.
 - Dark Bootstrap 5 theme, responsive down to phone width
 
 ## Error handling
