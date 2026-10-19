@@ -53,12 +53,20 @@
                   {{ row['wins'] }}-{{ row['games'] - row['wins'] }} ({{ row['win_rate'] }}%) · KDA {{ row['kda'] }}
                   {% if row['best_lane'] %}· best in {{ row['best_lane'] }}{% endif %}
                 </div>
+                <div class="small mt-1">Counted as {% include 'matches/_counted_as.html' %}</div>
               </div>
             </a>
           </div>
         {% endfor %}
       </div>
 
+      <p class="small text-body-secondary mb-2">
+        <strong>Counted as</strong> is each hero's record once older games are weighted down (see
+        <a class="link-secondary" href="{{ url_for('matches.stats') }}#rating-working">how much each game counts</a>).
+        <span class="text-success">▲</span> means its recent games went better than its older ones, which lifts the
+        rating above the all-games win rate; <span class="text-danger">▼</span> means they went worse. The rest of
+        the gap comes from the pull towards your average.
+      </p>
       <div class="table-responsive">
         <table class="table table-hover align-middle">
           <thead>
@@ -70,6 +78,7 @@
               <th class="text-end">Games</th>
               <th class="text-end">W - L</th>
               <th class="text-end">Win rate</th>
+              <th class="text-end" title="Wins and losses after weighting each game by its age">Counted as</th>
               <th class="text-end">KDA</th>
               <th class="text-end">Souls/min</th>
               <th>Best lane</th>
@@ -85,6 +94,7 @@
                 <td class="text-end">{{ row['games'] }}</td>
                 <td class="text-end">{{ row['wins'] }} - {{ row['games'] - row['wins'] }}</td>
                 <td class="text-end">{{ row['win_rate'] }}%</td>
+                <td class="text-end text-nowrap">{% include 'matches/_counted_as.html' %}</td>
                 <td class="text-end">{{ row['kda'] }}</td>
                 <td class="text-end">{{ '{:,}'.format(row['spm']) if row['spm'] is not none else '—' }}</td>
                 <td>

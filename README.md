@@ -42,7 +42,10 @@ from Valve or any third-party stats service.
   their hero page
 - **Rankings** page: your heroes with at least 10 games, enough of them recent, ranked from best to
   worst by their **rating** (see below), with a podium for your top three, a range bar for each hero
-  and each hero's best lane. Other heroes are listed separately under "Not enough games yet" with how
+  and each hero's best lane. A **Counted as** column shows each hero's record after weighting by age
+  (for example 6-8 counting as 3.2-3.0), marked ▲ when its recent games went better than its older
+  ones and ▼ when they went worse (a difference of 3+ points), so you can see when recency is
+  lifting or lowering a rating. Other heroes are listed separately under "Not enough games yet" with how
   many more games they need, and heroes held back because their games are mostly old are marked so. A GET form lets you rank by rating, the safe (low-end) estimate, win rate
   (all games, unadjusted), games played or KDA. The first three can give different orders:
   - **Rating** is the best single guess at how good you are on a hero now

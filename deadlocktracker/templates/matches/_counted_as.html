@@ -1,0 +1,17 @@
+{# A rated row's record after recency weighting, and whether its recent games went better or
+   worse than its record overall. Expects `row` (from rate_rows, with win_rate). #}
+{% set trend = row['eff_win_rate'] - row['win_rate'] %}
+<span title="Weighted by age, {{ row['name'] }}'s {{ row['games'] }} games count as {{ row['eff_games'] }}: {{ row['eff_wins'] }} wins and {{ (row['eff_games'] - row['eff_wins'])|round(2) }} losses">
+  {{ row['eff_wins']|round(1) }} - {{ (row['eff_games'] - row['eff_wins'])|round(1) }}
+  ({{ row['eff_win_rate'] }}%)
+</span>
+<div class="small text-body-secondary">
+  {{ row['eff_games']|round(1) }} of {{ row['games'] }} games ·
+  {% if trend >= recent_trend_points %}
+    <span class="text-success" title="Recent games went better than older ones, so the rating is above the all-games win rate">▲ recent games better</span>
+  {% elif trend <= -recent_trend_points %}
+    <span class="text-danger" title="Recent games went worse than older ones, so the rating is below the all-games win rate">▼ recent games worse</span>
+  {% else %}
+    <span>steady</span>
+  {% endif %}
+</div>

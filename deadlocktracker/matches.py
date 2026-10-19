@@ -102,6 +102,9 @@ MIN_RANKED_GAMES = 10
 # games are at least a quarter of the rating, while still letting someone who
 # plays a hero about twice a month have it ranked.
 MIN_RANKED_EFFECTIVE = 5
+# On Rankings, a hero whose weighted win rate differs from its all-games win
+# rate by at least this many points is marked as doing better or worse recently.
+RECENT_TREND_POINTS = 3
 # Example ages (days before your latest game) for the weight table on Stats.
 WEIGHT_EXAMPLE_DAYS = (0, 30, 60, 90, 150, 210, 365)
 
@@ -157,6 +160,7 @@ def rate_rows(rows, baseline):
         # shown even when the weighted counts are small.
         item.update(start=start, prior=round(prior, 2), eff_wins=round(item["wwins"] or 0, 2),
                     eff_games=round(eff_games, 2),
+                    eff_win_rate=round(win_rate(item["wwins"] or 0, eff_games), 1),
                     own_share=round(100 * eff_games / (eff_games + prior)))
     return rated, prior
 
@@ -200,7 +204,7 @@ def inject_heroes():
     settings = {"half_life_days": ratings.HALF_LIFE_DAYS, "full_weight_days": ratings.FULL_WEIGHT_DAYS,
                 "range_percent": int(ratings.RANGE * 100),
                 "min_list_games": MIN_LIST_GAMES, "min_ranked_games": MIN_RANKED_GAMES,
-                "min_ranked_effective": MIN_RANKED_EFFECTIVE,
+                "min_ranked_effective": MIN_RANKED_EFFECTIVE, "recent_trend_points": RECENT_TREND_POINTS,
                 "baseline_prior_games": ratings.BASELINE_PRIOR_GAMES,
                 "k_min": int(ratings.K_MIN), "k_max": int(ratings.K_MAX)}
     if g.get("user") is None:
