@@ -1,0 +1,41 @@
+.hero-banner {
+  background: linear-gradient(135deg, #2b2416 0%, #1a1d24 60%, #14202b 100%);
+  border: 1px solid rgba(255, 193, 7, 0.25);
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--bs-secondary-color);
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+@media (max-width: 575.98px) {
+  .stat-value {
+    font-size: 1.15rem;
+  }
+}
+
+/* Tables sit in .table-responsive, so let them scroll sideways instead of wrapping. */
+.table th,
+.table td {
+  white-space: nowrap;
+}
+
+.hero-card {
+  transition: border-color 0.15s ease-in-out;
+}
+
+.hero-card:hover {
+  border-color: var(--bs-warning);
+}
+
+.notes {
+  white-space: pre-wrap;
+}
