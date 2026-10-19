@@ -1,0 +1,123 @@
+{# Match form fields, shared by the create page, edit page and quick-log modal.
+   Expects `m` (a match row, the submitted form, or None), `slots` (teammate/enemy
+   slots, or None for empty) and `prefix` (for unique ids). #}
+{% set slots = slots or blank_slots() %}
+<div class="row g-3">
+  <div class="col-md-6">
+    <label for="{{ prefix }}hero_id" class="form-label">Hero</label>
+    <select class="form-select" id="{{ prefix }}hero_id" name="hero_id" required data-hero-select>
+      <option value="" disabled {% if not m or not m['hero_id'] %}selected{% endif %}>Choose a hero...</option>
+      {% for h in all_heroes %}
+        <option value="{{ h['id'] }}" {% if m and m['hero_id']|string == h['id']|string %}selected{% endif %}>{{ h['name'] }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="col-md-6">
+    <span class="form-label d-block">Result</span>
+    <div class="btn-group w-100" role="group" aria-label="Match result">
+      <input type="radio" class="btn-check" name="result" id="{{ prefix }}result-win" value="Win" required
+             {% if m and m['result'] == 'Win' %}checked{% endif %}>
+      <label class="btn btn-outline-success" for="{{ prefix }}result-win">Win</label>
+      <input type="radio" class="btn-check" name="result" id="{{ prefix }}result-loss" value="Loss"
+             {% if m and m['result'] == 'Loss' %}checked{% endif %}>
+      <label class="btn btn-outline-danger" for="{{ prefix }}result-loss">Loss</label>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <label for="{{ prefix }}team" class="form-label">Side</label>
+    <select class="form-select" id="{{ prefix }}team" name="team">
+      <option value="">Not recorded</option>
+      {% for t in teams %}
+        <option value="{{ t }}" {% if m and m['team'] == t %}selected{% endif %}>{{ t }}</option>
+      {% endfor %}
+    </select>
+  </div>
+
+  <div class="col-md-3 col-6">
+    <label for="{{ prefix }}souls" class="form-label">Souls</label>
+    <input type="number" min="0" class="form-control" id="{{ prefix }}souls" name="souls"
+           value="{{ m['souls'] if m and m['souls'] is not none else '' }}" placeholder="e.g. 32000">
+  </div>
+  <div class="col-md-3 col-6">
+    <label for="{{ prefix }}duration_min" class="form-label">Length (min)</label>
+    <input type="number" min="0" class="form-control" id="{{ prefix }}duration_min" name="duration_min"
+           value="{{ m['duration_min'] if m and m['duration_min'] is not none else '' }}">
+  </div>
+
+  <div class="col-4">
+    <label for="{{ prefix }}kills" class="form-label">Kills</label>
+    <input type="number" min="0" class="form-control" id="{{ prefix }}kills" name="kills"
+           value="{{ m['kills'] if m and m['kills'] is not none else 0 }}">
+  </div>
+  <div class="col-4">
+    <label for="{{ prefix }}deaths" class="form-label">Deaths</label>
+    <input type="number" min="0" class="form-control" id="{{ prefix }}deaths" name="deaths"
+           value="{{ m['deaths'] if m and m['deaths'] is not none else 0 }}">
+  </div>
+  <div class="col-4">
+    <label for="{{ prefix }}assists" class="form-label">Assists</label>
+    <input type="number" min="0" class="form-control" id="{{ prefix }}assists" name="assists"
+           value="{{ m['assists'] if m and m['assists'] is not none else 0 }}">
+  </div>
+
+  <div class="col-12">
+    <label for="{{ prefix }}notes" class="form-label">Notes</label>
+    <textarea class="form-control" id="{{ prefix }}notes" name="notes" rows="3"
+              placeholder="Build, what went well, what to try next time...">{{ m['notes'] if m and m['notes'] is not none else '' }}</textarea>
+  </div>
+
+  {# Teams and lanes: every match has all 12 heroes, and every lane is 2v2. #}
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">Teams &amp; lanes</div>
+      <div class="card-body">
+        <div class="row g-4">
+          <div class="col-md-6">
+            <h3 class="h6">Your team</h3>
+            <p class="small text-body-secondary mb-2">All 5 teammates. Mark the one who laned with you.</p>
+            {% for s in slots['ally'] %}
+              {% set i = loop.index %}
+              <div class="d-flex gap-2 mb-2">
+                <select class="form-select form-select-sm" name="ally_{{ i }}" id="{{ prefix }}ally_{{ i }}"
+                        aria-label="Teammate {{ i }}" required data-hero-select>
+                  <option value="">Teammate {{ i }}...</option>
+                  {% for h in all_heroes %}
+                    <option value="{{ h['id'] }}" {% if s['hero_id'] == h['id'] %}selected{% endif %}>{{ h['name'] }}</option>
+                  {% endfor %}
+                </select>
+                <input type="radio" class="btn-check" name="lane_partner" value="{{ i }}" autocomplete="off"
+                       id="{{ prefix }}lane_partner_{{ i }}" {% if s['in_lane'] %}checked{% endif %}
+                       {% if loop.first %}required{% endif %}>
+                <label class="btn btn-sm btn-outline-warning text-nowrap" for="{{ prefix }}lane_partner_{{ i }}"
+                       title="Lane partner">Lane partner</label>
+              </div>
+            {% endfor %}
+          </div>
+
+          <div class="col-md-6">
+            <h3 class="h6">Enemy team</h3>
+            <p class="small text-body-secondary mb-2">All 6 enemies. Mark the 2 who laned against you.</p>
+            {% for s in slots['enemy'] %}
+              {% set i = loop.index %}
+              <div class="d-flex gap-2 mb-2">
+                <select class="form-select form-select-sm" name="enemy_{{ i }}" id="{{ prefix }}enemy_{{ i }}"
+                        aria-label="Enemy {{ i }}" required data-hero-select>
+                  <option value="">Enemy {{ i }}...</option>
+                  {% for h in all_heroes %}
+                    <option value="{{ h['id'] }}" {% if s['hero_id'] == h['id'] %}selected{% endif %}>{{ h['name'] }}</option>
+                  {% endfor %}
+                </select>
+                <input type="checkbox" class="btn-check" name="enemy_lane_{{ i }}" value="1" autocomplete="off"
+                       id="{{ prefix }}enemy_lane_{{ i }}" {% if s['in_lane'] %}checked{% endif %} data-lane-opponent>
+                <label class="btn btn-sm btn-outline-danger text-nowrap" for="{{ prefix }}enemy_lane_{{ i }}"
+                       title="Lane opponent">Lane opponent</label>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

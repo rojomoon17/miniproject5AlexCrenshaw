@@ -1,0 +1,39 @@
+{# Match history table. Expects `matches` (rows from MATCH_SELECT). #}
+<div class="table-responsive">
+  <table class="table table-hover align-middle">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Hero</th>
+        <th>Result</th>
+        <th class="text-end">K / D / A</th>
+        <th class="text-end">KDA</th>
+        <th class="text-end">Souls</th>
+        <th class="text-end">Souls/min</th>
+        <th>Lane vs</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for match in matches %}
+        <tr>
+          <td>{{ match['played'].strftime('%b %d, %Y') }}</td>
+          <td>{{ match['hero_name'] }}</td>
+          <td>
+            <span class="badge {{ 'text-bg-success' if match['result'] == 'Win' else 'text-bg-danger' }}">
+              {{ match['result'] }}
+            </span>
+          </td>
+          <td class="text-end">{{ match['kills'] }} / {{ match['deaths'] }} / {{ match['assists'] }}</td>
+          <td class="text-end">{{ match['kda'] }}</td>
+          <td class="text-end">{{ '{:,}'.format(match['souls']) if match['souls'] is not none else '—' }}</td>
+          <td class="text-end">{{ '{:,}'.format(match['spm']) if match['spm'] is not none else '—' }}</td>
+          <td class="small">{{ match['lane_opponents'] or '—' }}</td>
+          <td class="text-end">
+            <a class="btn btn-sm btn-outline-light" href="{{ url_for('matches.detail', id=match['id']) }}">View</a>
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

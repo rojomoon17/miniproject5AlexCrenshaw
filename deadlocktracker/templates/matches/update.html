@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+
+{% block header %}
+  <h1>{% block title %}Edit match{% endblock %}</h1>
+{% endblock %}
+
+{% block content %}
+  <form method="post" class="card card-body">
+    {% with prefix='' %}
+      {% include 'matches/_form.html' %}
+    {% endwith %}
+    <div class="mt-4">
+      <button type="submit" class="btn btn-warning">Save changes</button>
+      <a class="btn btn-secondary" href="{{ url_for('matches.detail', id=match['id']) }}">Cancel</a>
+    </div>
+  </form>
+
+  <div class="mt-4">
+    {% include 'matches/_delete_modal.html' %}
+  </div>
+{% endblock %}

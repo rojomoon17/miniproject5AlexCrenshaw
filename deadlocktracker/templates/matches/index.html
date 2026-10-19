@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+
+{% block header %}
+  <div class="d-flex justify-content-between align-items-center">
+    <h1 class="mb-0">{% block title %}Match history{% endblock %}</h1>
+    <a class="btn btn-warning" href="{{ url_for('matches.create') }}">Log match</a>
+  </div>
+{% endblock %}
+
+{% block content %}
+  {% if matches %}
+    {% include 'matches/_table.html' %}
+  {% else %}
+    <div class="text-center py-5 border rounded-3">
+      <p class="fs-5">No matches logged yet.</p>
+      <a class="btn btn-warning" href="{{ url_for('matches.create') }}">Log your first match</a>
+    </div>
+  {% endif %}
+{% endblock %}

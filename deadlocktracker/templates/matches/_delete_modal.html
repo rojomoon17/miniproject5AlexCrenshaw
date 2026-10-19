@@ -1,0 +1,25 @@
+{# Delete button plus confirmation modal. Expects `match`. #}
+<button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+  Delete
+</button>
+
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h1 class="modal-title fs-5" id="deleteModalLabel">Delete this match?</h1>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        Your {{ match['result']|lower }} as <strong>{{ match['hero_name'] }}</strong>
+        ({{ match['kills'] }}/{{ match['deaths'] }}/{{ match['assists'] }}) will be removed permanently.
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <form method="post" action="{{ url_for('matches.delete', id=match['id']) }}">
+          <button type="submit" class="btn btn-danger">Delete match</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>

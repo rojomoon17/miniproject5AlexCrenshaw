@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ match['hero_name'] }} {{ match['result'] }}{% endblock %}
+
+{% block header %}
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <h1 class="mb-0">
+      {{ match['hero_name'] }}
+      <span class="badge fs-6 align-middle {{ 'text-bg-success' if match['result'] == 'Win' else 'text-bg-danger' }}">
+        {{ match['result'] }}
+      </span>
+    </h1>
+    <div class="d-flex gap-2">
+      <a class="btn btn-outline-light" href="{{ url_for('matches.update', id=match['id']) }}">Edit</a>
+      {% include 'matches/_delete_modal.html' %}
+    </div>
+  </div>
+  <p class="text-body-secondary mt-2 mb-0">
+    {{ match['played'].strftime('%B %d, %Y at %H:%M') }} UTC
+    {% if match['team'] %} · {{ match['team'] }}{% endif %}
+  </p>
+{% endblock %}
+
+{% block content %}
+  <div class="row row-cols-2 row-cols-md-5 g-3 mb-4">
+    <div class="col">
+      <div class="card h-100 text-center"><div class="card-body">
+        <div class="stat-label">K / D / A</div>
+        <div class="stat-value">{{ match['kills'] }} / {{ match['deaths'] }} / {{ match['assists'] }}</div>
+      </div></div>
+    </div>
+    <div class="col">
+      <div class="card h-100 text-center"><div class="card-body">
+        <div class="stat-label">KDA ratio</div>
+        <div class="stat-value">{{ match['kda'] }}</div>
+      </div></div>
+    </div>
+    <div class="col">
+      <div class="card h-100 text-center"><div class="card-body">
+        <div class="stat-label">Souls</div>
+        <div class="stat-value">{{ '{:,}'.format(match['souls']) if match['souls'] is not none else '—' }}</div>
+      </div></div>
+    </div>
+    <div class="col">
+      <div class="card h-100 text-center"><div class="card-body">
+        <div class="stat-label">Souls / min</div>
+        <div class="stat-value">{{ '{:,}'.format(match['spm']) if match['spm'] is not none else '—' }}</div>
+      </div></div>
+    </div>
+    <div class="col">
+      <div class="card h-100 text-center"><div class="card-body">
+        <div class="stat-label">Length</div>
+        <div class="stat-value">{{ match['duration_min'] ~ ' min' if match['duration_min'] is not none else '—' }}</div>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-md-6">
+      <div class="card h-100">
+        <div class="card-header">Your team</div>
+        <ul class="list-group list-group-flush">
+          <li class="list-group-item d-flex justify-content-between align-items-center">
+            <strong>{{ match['hero_name'] }} (you)</strong>
+          </li>
+          {% for p in allies %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <a class="text-reset" href="{{ url_for('matches.hero', id=p['hero_id']) }}">{{ p['name'] }}</a>
+              {% if p['in_lane'] %}<span class="badge text-bg-warning">Lane partner</span>{% endif %}
+            </li>
+          {% endfor %}
+          {% if not allies %}
+            <li class="list-group-item text-body-secondary">Teammates not recorded.</li>
+          {% endif %}
+        </ul>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card h-100">
+        <div class="card-header">Enemy team</div>
+        <ul class="list-group list-group-flush">
+          {% for p in enemies %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <a class="text-reset" href="{{ url_for('matches.hero', id=p['hero_id']) }}">{{ p['name'] }}</a>
+              {% if p['in_lane'] %}<span class="badge text-bg-danger">Lane opponent</span>{% endif %}
+            </li>
+          {% endfor %}
+          {% if not enemies %}
+            <li class="list-group-item text-body-secondary">Enemy team not recorded.</li>
+          {% endif %}
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">Notes</div>
+    <div class="card-body">
+      {% if match['notes'] %}
+        <p class="mb-0 notes">{{ match['notes'] }}</p>
+      {% else %}
+        <p class="mb-0 text-body-secondary">No notes for this match.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <a class="btn btn-link px-0 mt-3" href="{{ url_for('index') }}">&larr; Back to match history</a>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block header %}
+  <h1>{% block title %}Log a match{% endblock %}</h1>
+{% endblock %}
+
+{% block content %}
+  <form method="post" class="card card-body">
+    {% with prefix='' %}
+      {% include 'matches/_form.html' %}
+    {% endwith %}
+    <div class="mt-4">
+      <button type="submit" class="btn btn-warning">Save match</button>
+      <a class="btn btn-secondary" href="{{ url_for('index') }}">Cancel</a>
+    </div>
+  </form>
+{% endblock %}

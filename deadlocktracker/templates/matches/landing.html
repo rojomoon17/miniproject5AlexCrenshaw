@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block title %}Welcome{% endblock %}
+
+{% block content %}
+  <div class="p-5 rounded-3 hero-banner">
+    <h1 class="display-5 fw-bold">Track your Deadlock matches</h1>
+    <p class="col-lg-8 fs-5">
+      Log every game, see your win rate and KDA on each hero, and figure out who you should
+      really be locking in.
+    </p>
+    <a class="btn btn-warning btn-lg me-2" href="{{ url_for('auth.register') }}">Get started</a>
+    <a class="btn btn-outline-light btn-lg" href="{{ url_for('auth.login') }}">Log in</a>
+  </div>
+
+  <div class="row g-4 mt-2">
+    <div class="col-md-4">
+      <div class="card h-100"><div class="card-body">
+        <h2 class="h5">Log matches</h2>
+        <p class="mb-0">Hero, result, K/D/A, souls and notes, saved in seconds from any page.</p>
+      </div></div>
+    </div>
+    <div class="col-md-4">
+      <div class="card h-100"><div class="card-body">
+        <h2 class="h5">See your stats</h2>
+        <p class="mb-0">Win rate, KDA and average souls, broken down for every hero you play.</p>
+      </div></div>
+    </div>
+    <div class="col-md-4">
+      <div class="card h-100"><div class="card-body">
+        <h2 class="h5">Browse heroes</h2>
+        <p class="mb-0">Pick a hero and see every game you've played on them.</p>
+      </div></div>
+    </div>
+  </div>
+{% endblock %}
