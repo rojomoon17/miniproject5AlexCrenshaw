@@ -6,6 +6,7 @@
 {% endblock %}
 
 {% block content %}
+  {% set prior_games = hero_prior_games %}
   {% if not heroes %}
     <div class="text-center py-5 border rounded-3">
       <p class="fs-5 mb-1">Nothing to rank yet.</p>
@@ -25,7 +26,7 @@
       <noscript><div class="col-auto"><button type="submit" class="btn btn-outline-light">Sort</button></div></noscript>
     </form>
 
-    {% with baseline_label = 'your overall win rate' %}
+    {% with baseline_label = 'your overall win rate', prior = hero_prior_games %}
       {% include 'matches/_rating_help.html' %}
     {% endwith %}
 
@@ -102,8 +103,11 @@
           <li>6-1 on a hero: ({{ 6 }} + {{ '%.2f'|format(prior_games * baseline / 100) }}) ÷ {{ 7 + prior_games }}
             = <strong>{{ '%.1f'|format(100 * (6 + prior_games * baseline / 100) / (7 + prior_games)) }}%</strong></li>
         </ul>
-        <p class="mb-0">So 6-1 ranks above 1-0, even though 1-0 is a "perfect" record. Lanes and matchups on a
-          hero page use the same idea, starting from your win rate on that hero. The <em>Sample</em> badge shows how
+        <p>So 6-1 ranks above 1-0, even though 1-0 is a "perfect" record.</p>
+        <p class="mb-0">Lanes and matchups on a hero page use the same idea, starting from your win rate on that
+          hero but with a heavier weight of {{ matchup_prior_games }} games, because each matchup only has a few
+          games and lucky streaks would otherwise crowd out real patterns. A hero also needs at least
+          {{ min_list_games }} games with or against you to appear in a "best" or "toughest" list. The <em>Sample</em> badge shows how
           much data there is: <span class="badge text-bg-secondary">Low</span> under 3 games,
           <span class="badge text-bg-info">Medium</span> 3-9, <span class="badge text-bg-success">High</span> 10+.</p>
       </div>

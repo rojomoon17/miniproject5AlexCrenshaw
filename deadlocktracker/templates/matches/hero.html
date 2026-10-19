@@ -71,7 +71,7 @@
       </div></div></div>
     </div>
 
-    {% with baseline_label = 'your win rate on ' ~ hero['name'] %}
+    {% with baseline_label = 'your win rate on ' ~ hero['name'], prior = matchup_prior_games %}
       {% include 'matches/_rating_help.html' %}
     {% endwith %}
 
@@ -100,7 +100,8 @@
     {# Matchups and pairings #}
     <h2 class="h4">Matchups &amp; pairings</h2>
     <p class="small text-body-secondary">Only from your games as {{ hero['name'] }}. "Best" means you won at least half,
-      "toughest" means you lost more than half; each list is ordered by rating, so bigger samples rank higher.</p>
+      "toughest" means you lost more than half; each list is ordered by rating, so bigger samples rank higher,
+      and only includes heroes you've played with or against at least {{ min_list_games }} times.</p>
     <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3 mb-4">
       <div class="col">{{ matchup_card('Best lane matchups', best_opponents, 'No winning lane matchups yet.', 'success') }}</div>
       <div class="col">{{ matchup_card('Toughest lane matchups', toughest_opponents, 'No losing lane matchups yet.', 'danger') }}</div>
