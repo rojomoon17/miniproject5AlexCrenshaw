@@ -82,6 +82,11 @@ MATCHUP_PRIOR_GAMES = 10
 MIN_LIST_GAMES = 3
 # Fewer games than this is a small sample; at least the second is a solid one.
 CONFIDENCE_LEVELS = ((3, "Low", "secondary"), (10, "Medium", "info"))
+# A hero needs this many games (a "High" sample) to be ranked on the Rankings
+# page. The rating alone isn't enough: when your main heroes sit near your
+# average, a single win on another hero nudges it just above average and it
+# outranked mains with 40+ games.
+MIN_RANKED_GAMES = 10
 
 
 def win_rate(wins, games):
@@ -505,7 +510,8 @@ def rankings():
         (g.user["id"],),
     ).fetchall()
     if not rows:
-        return render_template("matches/rankings.html", heroes=[], sorts=RANKING_SORTS, sort="rating")
+        return render_template("matches/rankings.html", heroes=[], provisional=[],
+                               sorts=RANKING_SORTS, sort="rating")
 
     total_games = sum(r["games"] for r in rows)
     baseline = win_rate(sum(r["wins"] for r in rows), total_games)
@@ -525,10 +531,19 @@ def rankings():
     sort = request.args.get("sort", "rating")
     if sort not in RANKING_SORTS:
         sort = "rating"
-    heroes.sort(key=RANKING_SORTS[sort][1])
+    # Only heroes with enough games are ranked; the rest are listed separately,
+    # most played first, with how many more games they need.
+    ranked = sorted((h for h in heroes if h["games"] >= MIN_RANKED_GAMES), key=RANKING_SORTS[sort][1])
+    provisional = sorted((h for h in heroes if h["games"] < MIN_RANKED_GAMES),
+                         key=lambda h: (-h["games"], -h["rating"], h["name"]))
+    for h in provisional:
+        h["games_needed"] = MIN_RANKED_GAMES - h["games"]
 
-    return render_template("matches/rankings.html", heroes=heroes, sorts=RANKING_SORTS, sort=sort,
-                           baseline=round(baseline, 1), total_games=total_games)
+    examples = {"one_win": rating(1, 1, baseline), "six_one": rating(6, 7, baseline)}
+    return render_template("matches/rankings.html", heroes=ranked, provisional=provisional,
+                           sorts=RANKING_SORTS, sort=sort, baseline=round(baseline, 1),
+                           total_games=total_games, examples=examples,
+                           min_ranked_games=MIN_RANKED_GAMES)
 
 
 def played_heroes():

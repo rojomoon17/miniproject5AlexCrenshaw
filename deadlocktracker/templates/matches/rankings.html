@@ -2,115 +2,165 @@
 
 {% block header %}
   <h1>{% block title %}Hero rankings{% endblock %}</h1>
-  <p class="text-body-secondary mb-0">Your heroes from best to worst, weighted so more games count for more.</p>
+  <p class="text-body-secondary mb-0">
+    Your heroes from best to worst. Only heroes with enough games to judge are ranked.
+  </p>
 {% endblock %}
 
 {% block content %}
-  {% set prior_games = hero_prior_games %}
-  {% if not heroes %}
+  {% if not heroes and not provisional %}
     <div class="text-center py-5 border rounded-3">
       <p class="fs-5 mb-1">Nothing to rank yet.</p>
       <p class="text-body-secondary">Log some matches and your heroes will be ranked here.</p>
       <a class="btn btn-warning" href="{{ url_for('matches.create') }}">Log match</a>
     </div>
   {% else %}
-    <form method="get" class="row g-2 align-items-end mb-3">
-      <div class="col-sm-6 col-md-4">
-        <label for="rank-sort" class="form-label">Rank by</label>
-        <select class="form-select" id="rank-sort" name="sort" onchange="this.form.submit()">
-          {% for key, option in sorts.items() %}
-            <option value="{{ key }}" {% if key == sort %}selected{% endif %}>{{ option[0] }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <noscript><div class="col-auto"><button type="submit" class="btn btn-outline-light">Sort</button></div></noscript>
-    </form>
-
-    {% with baseline_label = 'your overall win rate', prior = hero_prior_games %}
-      {% include 'matches/_rating_help.html' %}
-    {% endwith %}
-
-    {# Top three as podium cards #}
-    <div class="row g-3 mb-4">
-      {% for row in heroes[:3] %}
-        <div class="col-md-4">
-          <a class="card h-100 text-reset text-decoration-none hero-card {{ 'border-warning' if loop.first }}"
-             href="{{ url_for('matches.hero', id=row['id']) }}">
-            <div class="card-body">
-              <div class="d-flex justify-content-between align-items-start">
-                <span class="display-6 fw-bold {{ 'text-warning' if loop.first else 'text-body-secondary' }}">#{{ loop.index }}</span>
-                {% include 'matches/_confidence.html' %}
-              </div>
-              <h2 class="h4 mt-2 mb-1">{{ row['name'] }}</h2>
-              <div class="stat-value">{{ row['rating'] }}% <span class="fs-6 fw-normal text-body-secondary">rating</span></div>
-              <div class="small text-body-secondary">
-                {{ row['wins'] }}-{{ row['games'] - row['wins'] }} ({{ row['win_rate'] }}%) · KDA {{ row['kda'] }}
-                {% if row['best_lane'] %}· best in {{ row['best_lane'] }}{% endif %}
-              </div>
-            </div>
-          </a>
+    {% if heroes %}
+      <form method="get" class="row g-2 align-items-end mb-3">
+        <div class="col-sm-6 col-md-4">
+          <label for="rank-sort" class="form-label">Rank by</label>
+          <select class="form-select" id="rank-sort" name="sort" onchange="this.form.submit()">
+            {% for key, option in sorts.items() %}
+              <option value="{{ key }}" {% if key == sort %}selected{% endif %}>{{ option[0] }}</option>
+            {% endfor %}
+          </select>
         </div>
-      {% endfor %}
-    </div>
+        <noscript><div class="col-auto"><button type="submit" class="btn btn-outline-light">Sort</button></div></noscript>
+      </form>
 
-    <div class="table-responsive">
-      <table class="table table-hover align-middle">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>Hero</th>
-            <th class="text-end">Rating</th>
-            <th class="text-end">W - L</th>
-            <th class="text-end">Win rate</th>
-            <th class="text-end">KDA</th>
-            <th class="text-end">Souls/min</th>
-            <th>Best lane</th>
-            <th>Sample</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in heroes %}
-            <tr>
-              <td class="text-body-secondary">{{ loop.index }}</td>
-              <td><a href="{{ url_for('matches.hero', id=row['id']) }}">{{ row['name'] }}</a></td>
-              <td class="text-end fw-semibold {{ 'text-success' if row['rating'] >= baseline else 'text-danger' }}">{{ row['rating'] }}%</td>
-              <td class="text-end">{{ row['wins'] }} - {{ row['games'] - row['wins'] }}</td>
-              <td class="text-end">{{ row['win_rate'] }}%</td>
-              <td class="text-end">{{ row['kda'] }}</td>
-              <td class="text-end">{{ '{:,}'.format(row['spm']) if row['spm'] is not none else '—' }}</td>
-              <td>
-                {% if row['best_lane'] %}
-                  <span class="badge rounded-pill text-bg-{{ lane_styles[row['best_lane']] }}">{{ row['best_lane'] }}</span>
-                {% else %}<span class="text-body-secondary small">—</span>{% endif %}
-              </td>
-              <td>{% include 'matches/_confidence.html' %}</td>
-            </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+      {% with baseline_label = 'your overall win rate', prior = hero_prior_games %}
+        {% include 'matches/_rating_help.html' %}
+      {% endwith %}
 
-    <div class="card mt-4" id="how">
-      <div class="card-header">How the rating works</div>
-      <div class="card-body small">
-        <p>A plain win rate jumps around on small samples: win your only game on a hero and it shows 100%.
-          The rating fixes that by imagining every hero already has {{ prior_games }} games at your
-          overall win rate ({{ baseline }}% across {{ total_games }} games), then adding your real games on top:</p>
-        <p class="font-monospace">rating = (wins + {{ prior_games }} × {{ baseline }}%) ÷ (games + {{ prior_games }})</p>
-        <ul class="mb-2">
-          <li>1-0 on a hero: ({{ 1 }} + {{ '%.2f'|format(prior_games * baseline / 100) }}) ÷ {{ 1 + prior_games }}
-            = <strong>{{ '%.1f'|format(100 * (1 + prior_games * baseline / 100) / (1 + prior_games)) }}%</strong></li>
-          <li>6-1 on a hero: ({{ 6 }} + {{ '%.2f'|format(prior_games * baseline / 100) }}) ÷ {{ 7 + prior_games }}
-            = <strong>{{ '%.1f'|format(100 * (6 + prior_games * baseline / 100) / (7 + prior_games)) }}%</strong></li>
-        </ul>
-        <p>So 6-1 ranks above 1-0, even though 1-0 is a "perfect" record.</p>
-        <p class="mb-0">Lanes and matchups on a hero page use the same idea, starting from your win rate on that
-          hero but with a heavier weight of {{ matchup_prior_games }} games, because each matchup only has a few
-          games and lucky streaks would otherwise crowd out real patterns. A hero also needs at least
-          {{ min_list_games }} games with or against you to appear in a "best" or "toughest" list. The <em>Sample</em> badge shows how
-          much data there is: <span class="badge text-bg-secondary">Low</span> under 3 games,
-          <span class="badge text-bg-info">Medium</span> 3-9, <span class="badge text-bg-success">High</span> 10+.</p>
+      {# Top three as podium cards #}
+      <div class="row g-3 mb-4">
+        {% for row in heroes[:3] %}
+          <div class="col-md-4">
+            <a class="card h-100 text-reset text-decoration-none hero-card {{ 'border-warning' if loop.first }}"
+               href="{{ url_for('matches.hero', id=row['id']) }}">
+              <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                  <span class="display-6 fw-bold {{ 'text-warning' if loop.first else 'text-body-secondary' }}">#{{ loop.index }}</span>
+                  <span class="small text-body-secondary">{{ row['games'] }} games</span>
+                </div>
+                <h2 class="h4 mt-2 mb-1">{{ row['name'] }}</h2>
+                <div class="stat-value">{{ row['rating'] }}% <span class="fs-6 fw-normal text-body-secondary">rating</span></div>
+                <div class="small text-body-secondary">
+                  {{ row['wins'] }}-{{ row['games'] - row['wins'] }} ({{ row['win_rate'] }}%) · KDA {{ row['kda'] }}
+                  {% if row['best_lane'] %}· best in {{ row['best_lane'] }}{% endif %}
+                </div>
+              </div>
+            </a>
+          </div>
+        {% endfor %}
       </div>
-    </div>
+
+      <div class="table-responsive">
+        <table class="table table-hover align-middle">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Hero</th>
+              <th class="text-end">Rating</th>
+              <th class="text-end">Games</th>
+              <th class="text-end">W - L</th>
+              <th class="text-end">Win rate</th>
+              <th class="text-end">KDA</th>
+              <th class="text-end">Souls/min</th>
+              <th>Best lane</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in heroes %}
+              <tr>
+                <td class="text-body-secondary">{{ loop.index }}</td>
+                <td><a href="{{ url_for('matches.hero', id=row['id']) }}">{{ row['name'] }}</a></td>
+                <td class="text-end fw-semibold {{ 'text-success' if row['rating'] >= baseline else 'text-danger' }}">{{ row['rating'] }}%</td>
+                <td class="text-end">{{ row['games'] }}</td>
+                <td class="text-end">{{ row['wins'] }} - {{ row['games'] - row['wins'] }}</td>
+                <td class="text-end">{{ row['win_rate'] }}%</td>
+                <td class="text-end">{{ row['kda'] }}</td>
+                <td class="text-end">{{ '{:,}'.format(row['spm']) if row['spm'] is not none else '—' }}</td>
+                <td>
+                  {% if row['best_lane'] %}
+                    <span class="badge rounded-pill text-bg-{{ lane_styles[row['best_lane']] }}">{{ row['best_lane'] }}</span>
+                  {% else %}<span class="text-body-secondary small">—</span>{% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="text-center py-4 border rounded-3 mb-4">
+        <p class="fs-5 mb-1">No heroes ranked yet.</p>
+        <p class="text-body-secondary mb-0">A hero is ranked once you've played {{ min_ranked_games }} games on it.
+          Your heroes so far are below.</p>
+      </div>
+    {% endif %}
+
+    {% if provisional %}
+      <h2 class="h5 mt-4" id="not-ranked">Not enough games yet</h2>
+      <p class="small text-body-secondary">
+        These heroes need {{ min_ranked_games }} games before they're ranked, so a lucky win or two can't
+        put them at the top. Most played first.
+      </p>
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead>
+            <tr>
+              <th>Hero</th>
+              <th class="text-end">Games</th>
+              <th class="text-end">W - L</th>
+              <th style="min-width: 160px">Progress to ranking</th>
+              <th>Sample</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in provisional %}
+              <tr>
+                <td><a href="{{ url_for('matches.hero', id=row['id']) }}">{{ row['name'] }}</a></td>
+                <td class="text-end">{{ row['games'] }}</td>
+                <td class="text-end">{{ row['wins'] }} - {{ row['games'] - row['wins'] }}</td>
+                <td>
+                  <div class="d-flex align-items-center gap-2">
+                    <div class="progress flex-grow-1" role="progressbar" aria-label="{{ row['name'] }} progress to ranking"
+                         aria-valuenow="{{ row['games'] }}" aria-valuemin="0" aria-valuemax="{{ min_ranked_games }}">
+                      <div class="progress-bar bg-secondary" style="width: {{ 100 * row['games'] / min_ranked_games }}%"></div>
+                    </div>
+                    <span class="small text-nowrap text-body-secondary">{{ row['games_needed'] }} more</span>
+                  </div>
+                </td>
+                <td>{% include 'matches/_confidence.html' %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+
+    {% if heroes %}
+      <div class="card mt-4" id="how">
+        <div class="card-header">How the ranking works</div>
+        <div class="card-body small">
+          <p>A plain win rate jumps around on small samples: win your only game on a hero and it shows 100%.
+            Two things stop that from deciding your rankings:</p>
+          <ol>
+            <li class="mb-2"><strong>Only heroes with {{ min_ranked_games }}+ games are ranked.</strong> Heroes with
+              fewer games are listed under "Not enough games yet" instead.</li>
+            <li><strong>Ranked heroes are ordered by rating.</strong> The rating imagines every hero already has
+              {{ hero_prior_games }} games at your overall win rate ({{ baseline }}% across {{ total_games }} games), then
+              adds your real games on top, so a longer record counts for more:
+              <p class="font-monospace my-2">rating = (wins + {{ hero_prior_games }} × {{ baseline }}%) ÷ (games + {{ hero_prior_games }})</p>
+              For example, a 1-0 record would rate {{ examples['one_win'] }}% and a 6-1 record {{ examples['six_one'] }}%.
+            </li>
+          </ol>
+          <p class="mb-0">Lanes and matchups on a hero page use the same rating, starting from your win rate on that
+            hero but with a heavier weight of {{ matchup_prior_games }} games, because each matchup only has a few games
+            and lucky streaks would otherwise crowd out real patterns. A hero also needs at least {{ min_list_games }}
+            games with or against you to appear in a "best" or "toughest" list.</p>
+        </div>
+      </div>
+    {% endif %}
   {% endif %}
 {% endblock %}
