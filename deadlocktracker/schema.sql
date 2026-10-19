@@ -35,6 +35,10 @@ CREATE TABLE match_log (
   FOREIGN KEY (hero_id) REFERENCES hero (id)
 );
 
+-- Ratings weight each game by its age relative to the player's latest game;
+-- this index makes finding that latest game fast.
+CREATE INDEX match_log_user_played ON match_log (user_id, played);
+
 -- The other heroes in a match: your teammates (side = 'ally') and the enemy
 -- team (side = 'enemy'). in_lane marks your lane partner (an ally) or your
 -- lane opponents (enemies). Your own hero stays on match_log.hero_id.

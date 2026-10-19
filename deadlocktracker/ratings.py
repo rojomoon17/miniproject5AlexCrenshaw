@@ -4,53 +4,78 @@
 
 """Win-rate ratings that account for sample size and how recent the games are.
 
-How a rating is worked out for a group of records (your heroes, or one hero's
-lanes or matchups):
+Ratings form a chain, each level starting from the one above it:
+    50% (matchmaking aims every player at 50%)
+      -> your average                (BASELINE_PRIOR_GAMES games of pull to 50%)
+        -> your rating on each hero  (pulled to your average)
+          -> each lane / matchup on that hero (pulled to the hero's rating)
 
-1. Recency: every game is weighted by how long ago it was played. A game
-   HALF_LIFE_DAYS old counts half as much as one played today, so the ratings
-   follow how you play now and the current patch.
-2. Empirical Bayes: each record starts from a baseline (your average) with a
-   "prior strength" of k imaginary games. Instead of picking k by hand, it is
-   estimated from the data: if the records' win rates are spread further apart
-   than luck alone would explain, the heroes really differ and k is small; if
-   the spread looks like luck, k is large and everything stays near average.
-3. Ranges: the result is a Beta distribution, which gives both a best estimate
-   (the rating) and an 80% range. Rankings use the low end of the range: the
-   win rate we're 90% sure you're at least at, so a single lucky win can't top
-   a long, solid record.
+At every level:
+
+1. Recency: each game is weighted by its age, measured from your most recent
+   game (not today's date, so a break from the game doesn't erase your history).
+   A game HALF_LIFE_DAYS older than your latest counts half as much.
+2. Empirical Bayes: each record starts from the level above with a prior
+   strength of k imaginary games, and k is estimated from the data: if the
+   records' win rates are spread further apart than luck alone would explain,
+   they really differ and k is small; if the spread looks like luck, k is large.
+3. Ranges: the result is a Beta distribution, which gives both the rating (its
+   mean) and an 80% range for the true win rate.
+
+The settings below were chosen by testing the method on ten very different kinds
+of simulated player (newcomers, one-tricks, flex players, strong and struggling
+players, heroes that are all equal or very different, 15 to 1,500 games) and on
+stable, slowly changing and patch-affected skill, not by fitting any one data set.
 """
 
 import math
 from datetime import datetime
 
+# Recency half-life. No single value is best for every player (short ones suit
+# fast-changing skill, long ones stable skill and players with few games a week);
+# 60 days had the smallest worst-case error across daily, every-3-days and
+# weekly players with stable, drifting or patch-changed skill.
 HALF_LIFE_DAYS = 60
 RANGE = 0.80  # the shown range covers the middle 80% of likely win rates
 LOW_Q, HIGH_Q = (1 - RANGE) / 2, 1 - (1 - RANGE) / 2
 
-# Limits and fallbacks for the fitted prior strength (in imaginary games).
-# Simulations showed the ceiling barely changes which matchups are found (within
-# 1 point between 15 and 100); a lower ceiling keeps real effects visible in the
-# numbers instead of squashing every rating towards the baseline.
-K_MIN, K_MAX = 3.0, 30.0
+# Your average is itself uncertain when you have few games, so it starts at 50%
+# (what matchmaking aims for) and moves to your real average as games add up.
+# This lifted range accuracy for newcomers from 71% to 86% and lowered the
+# rating error for every kind of player tested.
+BASELINE_PRIOR_GAMES = 20
+
+# Limits for the fitted prior strength (in imaginary games). With only a few
+# heroes or matchups to learn from, the fit often comes out far too large, which
+# makes ranges overconfident (true win rates fell inside the "80%" range only
+# 47-72% of the time with no ceiling). A ceiling of 15 kept every kind of player
+# tested at 79-91% while barely changing which matchups are found.
+K_MIN, K_MAX = 3.0, 15.0
 MIN_GROUPS_TO_FIT = 4
 
 
+def baseline_rate(wins, games):
+    """Your average win rate (0-100), pulled towards 50% while you have few games."""
+    return 100.0 * (wins + BASELINE_PRIOR_GAMES * 0.5) / (games + BASELINE_PRIOR_GAMES)
+
+
 def age_weight(age_days):
-    """Weight of a game played `age_days` ago: 1 today, 0.5 after HALF_LIFE_DAYS."""
+    """Weight of a game played `age_days` before your latest: 1, then 0.5 after HALF_LIFE_DAYS."""
     if age_days is None:
         return 1.0
     return 0.5 ** (max(age_days, 0.0) / HALF_LIFE_DAYS)
 
 
-def recency_weight(played, now=None):
-    """Weight of a game played at `played` (datetime or "YYYY-MM-DD HH:MM:SS" text)."""
-    if played is None:
+def recency_weight(played, latest):
+    """Weight of a game played at `played`, given your most recent game at `latest`
+    (datetimes or "YYYY-MM-DD HH:MM:SS" text)."""
+    if played is None or latest is None:
         return 1.0
     if isinstance(played, str):
         played = datetime.fromisoformat(played)
-    now = now or datetime.utcnow()
-    return age_weight((now - played).total_seconds() / 86400.0)
+    if isinstance(latest, str):
+        latest = datetime.fromisoformat(latest)
+    return age_weight((latest - played).total_seconds() / 86400.0)
 
 
 def fit_prior_strength(records, baseline, default):
