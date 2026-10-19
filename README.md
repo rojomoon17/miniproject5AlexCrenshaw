@@ -300,12 +300,36 @@ six from **City Never Sleeps** (September 2026). Valve adds heroes regularly. Ad
 
 ## AI Usage
 
-<!-- Edit this to match what you actually did and your course's AI Use Policy. -->
-I used Claude (Anthropic) to help plan the project against the assignment rubric and to generate
-the initial scaffold: the Flask application factory, database setup, auth and match blueprints,
-SQL schema and Bootstrap templates, modeled on the official Flask tutorial. I reviewed the
-generated code, tested the app myself, and [describe your own changes: customizations, fixes,
-styling, features you added].
+This project was built with Claude (Anthropic), used through Claude Code in the Claude desktop app.
+
+**Claude wrote all of the code and documentation.** That includes every Python file, the SQL schema
+and hero list, all templates, CSS and JavaScript, `requirements.txt` and this README. Claude also:
+
+- planned the project against the rubric and designed the database and page structure
+- designed the rating system (recency weighting, empirical-Bayes prior, ranges, ranking rules) and
+  chose its settings by writing and running simulations
+- researched the current hero roster on the web
+- wrote and ran the tests, and generated the sample and stress-test match data used for testing
+- set up the environment, made every commit (authored as Claude) and pushed them to GitHub
+
+**My part was directing the project.** I chose the idea (a Deadlock match tracker) and decided what
+it should do and how it should behave, through requests and feedback, including:
+
+- what to record: souls per minute, both teams, the lane played, a lane partner and two lane
+  opponents, every match having all 12 heroes, and no duplicate heroes
+- the game's current rules and names: no solo lanes, the Hidden King and Archmother sides, and
+  which update heroes were missing
+- how stats should work: match length as minutes:seconds, matchups kept separate per hero, and
+  souls/min never averaged across heroes
+- hero pages with notes, best matchups, pairings and lanes
+- weighting ratings by experience, a Rankings page, and fixing heroes with one won game topping it
+- which suggested rating improvements to adopt, and that the system should work for any player
+- requiring recent games for a hero to be ranked, counting games fully for their first 30 days,
+  and showing how each rating is built
+- the wording and sort-option changes I asked for after reviewing the pages
+
+I tested the app in the browser and reviewed Claude's results and explanations before accepting
+changes.
 
 ## Credits
 
