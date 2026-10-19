@@ -35,9 +35,10 @@ from Valve or any third-party stats service.
   matches on that hero; and your match history on them
 - **Heroes** page: the full roster with your record on each hero; heroes you've played link to
   their hero page
-- **Rankings** page: your heroes ranked from best to worst by an experience-weighted **rating**
-  (see below), with a podium for your top three, each hero's best lane and a sample-size badge.
-  A GET form lets you rank by rating, raw win rate, games played or KDA
+- **Rankings** page: your heroes with at least 10 games, ranked from best to worst by an
+  experience-weighted **rating** (see below), with a podium for your top three and each hero's best
+  lane. Heroes with fewer games are listed separately under "Not enough games yet" with how many more
+  games they need. A GET form lets you rank by rating, raw win rate, games played or KDA
 
 ## How the rating works
 
@@ -57,8 +58,15 @@ outrank one with hundreds. Records are also tagged **Low** (under 3 games), **Me
 
 | Ranking | Baseline | Prior weight | Minimum games to be listed |
 |---|---|---|---|
-| Heroes (Rankings, Stats) | your overall win rate | 5 games | — |
+| Heroes (Rankings page) | your overall win rate | 5 games | 10 |
+| Heroes (Stats page table) | your overall win rate | 5 games | — |
 | A hero's lanes and matchups | your win rate on that hero | 10 games | 3 (best/toughest lists) |
+
+**Why the Rankings page needs 10 games:** the rating alone wasn't enough. With 140 matches, the
+three main heroes sat close to the overall 49% win rate, so a single win on another hero (rating
+57.7%) nudged it just above average and four 1-0 heroes took the top four places over mains with
+36–50 games. Requiring a High sample (10+ games, the same threshold as the green badge) means only
+heroes with a record worth judging are ranked.
 
 **Why lanes and matchups use a heavier weight:** a stress test with 140 logged matches, plus 300
 simulated heroes with planted matchup effects, showed that with a weight of 5 a lucky 2-0 or 3-0
