@@ -1,0 +1,7 @@
+{# Explains the rating. Expects `baseline` (the win rate it starts from) and `baseline_label`. #}
+<p class="small text-body-secondary mb-3">
+  <strong>Rating</strong> is a win rate that counts experience: every record starts as if it already
+  had {{ prior_games }} games at {{ baseline_label }} ({{ baseline }}%), so it only moves far from that
+  after several games. A 1-0 record barely moves; a 6-1 record moves a lot.
+  <a class="link-secondary" href="{{ url_for('matches.rankings') }}#how">How it works</a>
+</p>

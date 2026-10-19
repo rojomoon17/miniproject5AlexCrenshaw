@@ -1,0 +1,4 @@
+{# Sample-size badge. Expects `row` with a `confidence` (label, colour) pair. #}
+<span class="badge text-bg-{{ row['confidence'][1] }}" title="Based on {{ row['games'] }} game{{ '' if row['games'] == 1 else 's' }}">
+  {{ row['confidence'][0] }}
+</span>

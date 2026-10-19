@@ -33,6 +33,10 @@
       </div>
     </form>
 
+    {% with baseline_label = 'your win rate on ' ~ selected['name'] %}
+      {% include 'matches/_rating_help.html' %}
+    {% endwith %}
+
     <ul class="nav nav-tabs mb-3" role="tablist">
       {% for key, label, _, rows in tabs %}
         <li class="nav-item" role="presentation">

@@ -1,9 +1,11 @@
-{# Matchup table. Expects `rows` (from matchup_stats) and `title` (first column heading). #}
+{# Matchup table. Expects `rows` (rated matchup_stats rows) and `title` (first column heading). #}
 <div class="table-responsive">
   <table class="table align-middle">
     <thead>
       <tr>
         <th>{{ title }}</th>
+        <th class="text-end">Rating</th>
+        <th>Sample</th>
         <th class="text-end">Games</th>
         <th class="text-end">W - L</th>
         <th style="min-width: 160px">Win rate</th>
@@ -14,6 +16,8 @@
       {% for row in rows %}
         <tr>
           <td>{{ row['name'] }}</td>
+          <td class="text-end fw-semibold {{ 'text-success' if row['rating'] >= baseline else 'text-danger' }}">{{ row['rating'] }}%</td>
+          <td>{% include 'matches/_confidence.html' %}</td>
           <td class="text-end">{{ row['games'] }}</td>
           <td class="text-end">{{ row['wins'] }} - {{ row['games'] - row['wins'] }}</td>
           <td>

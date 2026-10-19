@@ -39,7 +39,7 @@
     </div>
     <p class="small text-body-secondary mb-4">
       Souls and souls/min are only shown per hero, because heroes farm at very different rates.
-      Click a hero for lanes, matchups and notes.
+      Click a hero for lanes, matchups and notes, or see your <a href="{{ url_for('matches.rankings') }}">hero rankings</a>.
     </p>
 
     <h2 class="h4">By hero</h2>
@@ -48,6 +48,7 @@
         <thead>
           <tr>
             <th>Hero</th>
+            <th class="text-end">Rating</th>
             <th class="text-end">Games</th>
             <th class="text-end">W - L</th>
             <th style="min-width: 160px">Win rate</th>
@@ -60,6 +61,7 @@
           {% for row in per_hero %}
             <tr>
               <td><a href="{{ url_for('matches.hero', id=row['id']) }}">{{ row['name'] }}</a></td>
+              <td class="text-end fw-semibold">{{ row['rating'] }}%</td>
               <td class="text-end">{{ row['games'] }}</td>
               <td class="text-end">{{ row['wins'] }} - {{ row['games'] - row['wins'] }}</td>
               <td>
