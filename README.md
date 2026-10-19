@@ -35,45 +35,75 @@ from Valve or any third-party stats service.
   matches on that hero; and your match history on them
 - **Heroes** page: the full roster with your record on each hero; heroes you've played link to
   their hero page
-- **Rankings** page: your heroes with at least 10 games, ranked from best to worst by an
-  experience-weighted **rating** (see below), with a podium for your top three and each hero's best
-  lane. Heroes with fewer games are listed separately under "Not enough games yet" with how many more
-  games they need. A GET form lets you rank by rating, raw win rate, games played or KDA
+- **Rankings** page: your heroes with at least 10 games, ranked from best to worst by their
+  **rating** (see below), with a podium for your top three, a range bar for each hero and each hero's
+  best lane. Heroes with fewer games are listed separately under "Not enough games yet" with how many
+  more games they need. A GET form lets you rank by rating, the safe (low-end) estimate, raw win
+  rate, games played or KDA
+- Dark Bootstrap 5 theme, responsive down to phone width
 
 ## How the rating works
 
-A plain win rate is misleading on small samples: win your only game on a hero and it reads 100%.
-The app's **rating** fixes that by treating every record as if it already had 5 games at a
-baseline win rate, then adding your real games:
+A plain win rate is misleading in two ways: on small samples (win your only game on a hero and it
+reads 100%) and over time (a game from months ago counts the same as last night's). The app's
+**rating** (in `deadlocktracker/ratings.py`) handles both in three steps:
 
-```
-rating = (wins + 5 × baseline) / (games + 5)
-```
+1. **Recent games count more.** Each game is weighted by its age: a game 60 days old counts half
+   as much as one played today, 120 days a quarter, and so on. Ratings follow how you play now and
+   the current patch. W-L records and game counts on every page still include every game.
+2. **Every rating starts from your average, by an amount the data decides (empirical Bayes).**
+   Each record is treated as if it already had *k* games at a baseline win rate (your overall win
+   rate when comparing heroes, your win rate on a hero when comparing its lanes and matchups):
 
-With a 55% baseline, a 1-0 hero rates (1 + 2.75) / 6 = **62.5%**, while a 6-1 hero rates
-(6 + 2.75) / 12 = **72.9%**, so the hero with more proven wins ranks higher. This is the same idea
-as a Bayesian average, the method review sites use so a product with one 5-star review doesn't
-outrank one with hundreds. Records are also tagged **Low** (under 3 games), **Medium** (3–9) or
-**High** (10+) so you can see how much data is behind them.
+   ```
+   rating = (recent-weighted wins + k × baseline) / (recent-weighted games + k)
+   ```
 
-| Ranking | Baseline | Prior weight | Minimum games to be listed |
+   Instead of picking *k* by hand, the app estimates it from your data (method of moments): if your
+   records' win rates differ by more than luck alone would explain, the differences are real and
+   *k* is small; if the spread looks like luck, *k* is large and ratings stay near average. *k* is
+   kept between 3 and 30 games, and falls back to 10 when there are too few records to estimate it.
+3. **Every rating comes with a range.** The rating is the middle of a Beta distribution, which also
+   gives an **80% range**: where your true win rate probably is. The bars on the Rankings, hero and
+   Matchups pages show it, coloured green when the whole range is above your baseline and red when
+   it's all below. More games means a narrower range.
+
+How each list uses the rating:
+
+| List | Baseline | Ordered by | Minimum games |
 |---|---|---|---|
-| Heroes (Rankings page) | your overall win rate | 5 games | 10 |
-| Heroes (Stats page table) | your overall win rate | 5 games | — |
-| A hero's lanes and matchups | your win rate on that hero | 10 games | 3 (best/toughest lists) |
+| Rankings page | your overall win rate | rating (or another option in the form) | 10 |
+| A hero's best lane | your win rate on that hero | low end of the range | — |
+| Best lane matchups / partners / teammates | your win rate on that hero | low end of the range | 3 |
+| Toughest lane matchups / partners / enemies | your win rate on that hero | high end of the range | 3 |
 
-**Why the Rankings page needs 10 games:** the rating alone wasn't enough. With 140 matches, the
-three main heroes sat close to the overall 49% win rate, so a single win on another hero (rating
-57.7%) nudged it just above average and four 1-0 heroes took the top four places over mains with
-36–50 games. Requiring a High sample (10+ games, the same threshold as the green badge) means only
-heroes with a record worth judging are ranked.
+Ordering the best by the low end of the range, and the toughest by the high end, puts the records
+we're surest about first: a 5-1 matchup outranks a 1-0 one even though 1-0 is a "perfect" record.
+Records are also tagged **Low** (under 3 games), **Medium** (3–9) or **High** (10+).
 
-**Why lanes and matchups use a heavier weight:** a stress test with 140 logged matches, plus 300
-simulated heroes with planted matchup effects, showed that with a weight of 5 a lucky 2-0 or 3-0
-record against a random hero often pushed real patterns out of a hero page's top 3. A weight of 10
-plus a 3-game minimum raised how often a real ±25% matchup effect reached the top 3 from about 55%
-to about 75% at realistic sample sizes.
-- Dark Bootstrap 5 theme, responsive down to phone width
+### How it was tested
+
+The method was chosen by testing, using 140 logged sample matches with **planted** effects (for
+example, Haze was set up to lose more often against Infernus in lane) and simulations of 300
+heroes and 1,000 players:
+
+- **Matchups:** the fitted weight plus range ordering found a planted ±25% lane matchup in a hero
+  page's top 3 about **80%** of the time at realistic sample sizes (45 games on a hero), and about
+  **96%** with 150 games. The previous fixed-weight method managed about 75% and 80%. On the 140
+  logged matches it surfaced 9 of the 12 planted patterns. The 3 it missed were cases where the
+  random results went against the plant (for example, a planted bad matchup that went 4-1), so the
+  data never showed them; every pattern the data did support was found.
+- **Hero rankings:** without the 10-game minimum, heroes with 1–3 games reached the top 3 in 82–96%
+  of simulated players. A one- or two-game hero is estimated as "about average", which beats a main
+  that's proven slightly below average. With the minimum, small-sample heroes never reach the
+  rankings. Every ordering method then picked the truly best main equally often (about 60%), which
+  shows the real limit is data: with about 40 games on a hero, its true win rate is still uncertain by
+  roughly ±15 points. That's why the app shows ranges instead of a single number.
+- **The weight's ceiling** (30 games) barely affected which matchups were found (results were within
+  1 point for ceilings from 15 to 100). A lower ceiling keeps real effects visible in the numbers
+  instead of squashing every rating towards the baseline.
+- **The Beta-distribution maths** is written by hand (no SciPy dependency) and checked against
+  200,000 random samples from Python's `random.betavariate` (largest difference 0.1 percentage points).
 
 ## Error handling
 
@@ -134,6 +164,7 @@ deadlocktracker/
 ├── auth.py            # register / login / logout blueprint
 ├── matches.py         # matches, stats, matchups and heroes blueprint
 ├── errors.py          # error pages and database error handling
+├── ratings.py         # recency weighting, fitted prior and rating ranges
 ├── static/
 │   ├── style.css
 │   └── match-form.js  # greys out heroes already picked in the match form
