@@ -25,7 +25,7 @@ from Valve or any third-party stats service.
   calculated for one hero at a time, because heroes farm at very different rates
 - Edit matches, and delete them through a Bootstrap confirmation modal
 - **Stats** page: games, win rate, overall KDA and heroes played, plus a per-hero table with
-  average souls and souls/min
+  rating, average souls and souls/min
 - **Matchups** page: pick one of your heroes and see your win rate and souls/min against each lane
   opponent, with each lane partner, and with each hero on the enemy team or your team. Matchups are
   kept separate per hero: beating a hero in lane on Apollo says nothing about facing them on Shiv
@@ -126,6 +126,21 @@ histories (1,500 games). Each was simulated 400 times.
   against 200,000 random samples from Python's `random.betavariate` (largest difference 0.1 percentage
   points).
 
+## Assignment requirements
+
+| Requirement | Where it's met |
+|-------------|----------------|
+| Header comments | Every `.py` file in `deadlocktracker/` starts with the class, name and project |
+| Imports | Standard library, then Flask/Werkzeug, then the app's own modules, at the top of each file |
+| Folder structure | Application factory package modeled on the Flask tutorial (see [Project structure](#project-structure)) |
+| 5+ pages with templates | 13 page templates extending `base.html`, with shared partials pulled in by `include` (see [Pages](#pages)) |
+| Form with GET and POST | Log match / edit match (`/match/new`, `/match/<id>/edit`), register, log in and hero notes |
+| SQLite, 2+ tables with a foreign key | 5 tables; `match_log`, `match_player` and `hero_note` link to `user` and `hero` (see [Database](#database)) |
+| Bootstrap with a modal | Bootstrap 5.3.3; Quick log modal in `base.html` and delete confirmation modal in `_delete_modal.html` |
+| Register and login | `auth.py`: register, log in, log out, hashed passwords, `login_required` |
+| requirements.txt | Pinned Flask 3.1.3 and its dependencies |
+| README | Installation, `init-db` and running the server below, plus an AI Usage section |
+
 ## Error handling
 
 - **Form input:** every form is checked on the server, and problems are shown as a message above
@@ -134,7 +149,7 @@ histories (1,500 games). Each was simulated 400 times.
   a missing lane, a length that isn't minutes:seconds, hero notes over 5,000 characters,
   missing teammates or enemies, a missing lane partner, anything other than 2 lane opponents,
   duplicate heroes, and usernames/passwords that are too long or too short.
-- **Error pages:** 403, 404, 405 and 500 errors show a styled page with a plain-English explanation
+- **Error pages:** 400, 403, 404, 405, 409, 500 and 503 errors show a styled page with a plain-English explanation
   and links back into the app, instead of Flask's default error text. Trying to open another
   player's match gives a 403, and a deleted match or hero gives a 404.
 - **Database problems:** if the database hasn't been initialized, the app shows a page telling you
@@ -153,7 +168,7 @@ histories (1,500 games). Each was simulated 400 times.
 | Match detail | `/match/<id>` | Full stats and notes, with edit and delete |
 | Edit match | `/match/<id>/edit` | GET + POST form, owner only |
 | Stats | `/stats` | Aggregate stats using `JOIN` and `GROUP BY` |
-| Rankings | `/rankings?sort=<rating\|win_rate\|games\|kda>` | Your heroes ranked by rating, with a GET form to change the order |
+| Rankings | `/rankings?sort=<rating\|low\|win_rate\|games\|kda>` | Your heroes ranked by rating, with a GET form to change the order |
 | Matchups | `/matchups?hero=<id>` | GET form to pick your hero, then tabs for lane opponents, lane partners, enemy team and your team |
 | Heroes | `/heroes` | Hero grid |
 | Hero page | `/heroes/<id>` | Lanes, matchups, pairings, notes and matches for one hero, plus a POST form (`/heroes/<id>/notes`) to save your notes |
@@ -197,6 +212,8 @@ deadlocktracker/
 ```
 
 ## Installation
+
+Requires Python 3 (tested with Python 3.11) and Git.
 
 1. Clone the repository and move into it:
 
